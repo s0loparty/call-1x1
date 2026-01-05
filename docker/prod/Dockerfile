@@ -24,9 +24,7 @@ RUN composer install \
     --no-interaction
 
 # Frontend build
-RUN npm install -g pnpm \
- && pnpm install --frozen-lockfile \
- && pnpm run build
+RUN npm install && npm run build
 
 # Permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
