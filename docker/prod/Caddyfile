@@ -1,17 +1,18 @@
 {
-    # Tell Caddy to get certificates from Let's Encrypt
-    acme_ca https://acme-v02.api.letsencrypt.org/directory
-    # Optional: Email for certificate notices
-    # email your-email@example.com
+  email alabamaster1@gmail.com
 }
 
 call.playerinlife.ru {
-    # Reverse proxy the main application
-    reverse_proxy / app:80
 
-    # Reverse proxy the Reverb WebSocket server
-    # The path /app/{REVERB_APP_KEY} is the default path Reverb listens on
-    # We need to ensure the REVERB_APP_KEY is available here or hardcode it
-    # For simplicity, let's assume the frontend configures this path
-    reverse_proxy /app/* reverb:8080
+  # Reverb WebSocket
+  reverse_proxy /app/* reverb:8080 {
+    header_up Host {host}
+    header_up X-Forwarded-Proto {scheme}
+  }
+
+  # Laravel app
+  reverse_proxy app:9000 {
+    header_up Host {host}
+    header_up X-Forwarded-Proto {scheme}
+  }
 }
