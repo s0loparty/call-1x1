@@ -1,0 +1,68 @@
+Ты — senior fullstack-инженер с опытом WebRTC, Nuxt 3, Laravel и realtime-приложений.
+
+ЗАДАЧА:
+Реализовать минимально рабочую систему аудиозвонков 1×1 между авторизованными пользователями.
+
+ОГРАНИЧЕНИЯ И ТРЕБОВАНИЯ:
+- Только аудио (без видео)
+- Только 1×1 звонки
+- Без записи звонков
+- Без групп
+- Без мобильных SDK (только web)
+- Использовать WebRTC
+- Использовать signaling через WebSocket
+- Backend НЕ передаёт аудио, только сигналинг
+- Код должен быть простым и читаемым, без overengineering
+
+СТЕК:
+Frontend:
+- Vue 3
+- TypeScript
+- WebRTC API (RTCPeerConnection, getUserMedia)
+- WebSocket клиент
+
+Backend:
+- Laravel 12
+- Laravel Reverb (WebSocket)
+- Авторизация через сессии или Bearer token
+- Redis для pub/sub (если нужно)
+
+Инфраструктура:
+- STUN + TURN (Coturn)
+- Указать пример конфигурации ICE servers
+
+ФУНКЦИОНАЛ:
+1. Пользователь A может позвонить пользователю B
+2. Пользователь B получает входящий звонок
+3. B может принять или отклонить
+4. При принятии устанавливается WebRTC аудиосоединение
+5. При завершении звонка соединение корректно закрывается
+
+SIGNALING EVENTS (обязательно):
+- call:initiate
+- call:incoming
+- call:accept
+- call:reject
+- call:offer
+- call:answer
+- call:ice-candidate
+- call:end
+
+ЧТО НУЖНО В РЕЗУЛЬТАТЕ:
+- Архитектурное описание (коротко)
+- Схема signaling-потока
+- Пример backend WebSocket-обработчиков
+- Пример frontend composable / service для звонков
+- Пример RTCPeerConnection и обмена SDP/ICE
+- Пример ICE servers config (STUN + TURN)
+- Комментарии, где возможны edge-cases
+
+ЧТО НЕ НУЖНО:
+- UI дизайн
+- Анимации
+- Оптимизации
+- Шифрование уровня Signal
+- Push-уведомления
+
+ВАЖНО:
+Для UI используй shadcn-vue - npx shadcn@latest add switch
