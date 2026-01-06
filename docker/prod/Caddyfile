@@ -7,37 +7,28 @@ call.playerinlife.ru {
     encode zstd gzip
 
     #
-    # WebSocket Reverb — ОБЯЗАТЕЛЬНО ПЕРВЫМ
+    # 🔥 Reverb WebSocket — ПЕРВЫМ и ЭКСКЛЮЗИВНО
     #
-    @reverb {
-        path /app/*
-    }
-    reverse_proxy @reverb reverb:8080 {
-        # header_up Host {host}
-        # header_up X-Forwarded-Proto {scheme}
-        # header_up X-Forwarded-For {remote}
-        header_up Host {host}
-        header_up X-Real-IP {remote_ip}
-        header_up X-Forwarded-For {remote_ip}
-        header_up X-Forwarded-Proto {scheme}
-
-        # Ensure WebSocket handshake is handled correctly
-        # Caddy v2 handles WebSocket upgrades by default for reverse_proxy, but
-        # these headers explicitly manage the connection state.
-        header_up Connection "Upgrade"
-        header_up Upgrade "websocket"
+    handle_path /app/* {
+        reverse_proxy reverb:8080 {
+            header_up Host {host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-For {remote}
+        }
     }
 
     #
     # Laravel / Inertia
     #
-    root * /var/www/html/public
-    php_fastcgi app:9000
-    try_files {path} /index.php?{query}
-    file_server
+    handle {
+        root * /var/www/html/public
+        php_fastcgi app:9000
+        try_files {path} {path}/ /index.php?{query}
+        file_server
+    }
 
     #
-    # Security headers
+    # Security
     #
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
