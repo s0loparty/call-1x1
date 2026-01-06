@@ -1,27 +1,37 @@
 {
-  email alabamaster1@gmail.com
+    email alabamaster1@gmail.com
 }
 
 call.playerinlife.ru {
+
     encode zstd gzip
 
-    root * /var/www/html/public
-    php_fastcgi app:9000
-
-    # InertiaJS SPA fallback
-    try_files {path} /index.php?{query}
-
-    file_server
-
+    #
+    # WebSocket Reverb — ОБЯЗАТЕЛЬНО ПЕРВЫМ
+    #
     @reverb {
         path /app/*
     }
+
     reverse_proxy @reverb reverb:8080 {
         header_up Host {host}
         header_up X-Forwarded-For {remote}
         header_up X-Forwarded-Proto {scheme}
     }
 
+    #
+    # Laravel / Inertia
+    #
+    root * /var/www/html/public
+    php_fastcgi app:9000
+
+    try_files {path} /index.php?{query}
+
+    file_server
+
+    #
+    # Security headers
+    #
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Frame-Options "SAMEORIGIN"
