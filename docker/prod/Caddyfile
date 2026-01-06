@@ -4,6 +4,7 @@
 
 call1x1.playerinlife.ru {
 
+    root * /var/www/html/public
     encode zstd gzip
 
     #
@@ -22,9 +23,8 @@ call1x1.playerinlife.ru {
     # Laravel / Inertia
     #
     handle {
-        root * /var/www/html/public
         php_fastcgi app:9000
-        try_files {path} {path}/ /index.php?{query}
+        #try_files {path} {path}/ /index.php?{query}
         file_server
     }
 
