@@ -3,9 +3,14 @@
 }
 
 call.playerinlife.ru {
-    encode gzip
+    encode zstd gzip
 
     root * /var/www/html/public
+    php_fastcgi app:9000
+
+    # InertiaJS SPA fallback
+    try_files {path} /index.php?{query}
+
     file_server
 
     @reverb {
