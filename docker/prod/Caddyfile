@@ -11,12 +11,21 @@ call.playerinlife.ru {
     #
     @reverb {
         path /app/*
-        header Upgrade websocket
     }
     reverse_proxy @reverb reverb:8080 {
+        // header_up Host {host}
+        // header_up X-Forwarded-Proto {scheme}
+        // header_up X-Forwarded-For {remote}
         header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}
-        header_up X-Forwarded-For {remote}
+
+        # Ensure WebSocket handshake is handled correctly
+        # Caddy v2 handles WebSocket upgrades by default for reverse_proxy, but
+        # these headers explicitly manage the connection state.
+        header_up Connection "Upgrade"
+        header_up Upgrade "websocket"
     }
 
     #
