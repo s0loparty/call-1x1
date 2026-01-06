@@ -12,6 +12,8 @@ export type CallState =
     | 'active'
     | 'terminating';
 
+export type CallType = 'audio' | 'video';
+
 interface SdpPayload {
     type: RTCSdpType;
     sdp: string; // This is Base64 encoded
@@ -24,11 +26,13 @@ interface CandidatePayload {
 interface SignalingData {
     type: string;
     from_user_id: number;
+    callType?: CallType;
     payload?: SdpPayload | CandidatePayload | null;
 }
 
 export interface IncomingCall {
     from_user_id: number;
+    callType: CallType;
     payload: SdpPayload;
 }
 
@@ -52,12 +56,14 @@ const ICE_SERVERS: RTCConfiguration = {
 
 // --- Module-level state (Singleton Pattern) ---
 const callState: Ref<CallState> = ref('idle');
+const callType: Ref<CallType | null> = ref(null);
 const peerConnection: Ref<RTCPeerConnection | null> = ref(null);
 const localStream: Ref<MediaStream | null> = ref(null);
 const remoteStream: Ref<MediaStream | null> = ref(null);
 const remoteStreamTrigger = ref(0);
 const incomingCall: Ref<IncomingCall | null> = ref(null);
 const isMuted = ref(false);
+const isVideoEnabled = ref(true);
 const otherUserId: Ref<number | null> = ref(null);
 const iceCandidateQueue: Ref<RTCIceCandidate[]> = ref([]);
 
@@ -107,7 +113,7 @@ function _createPeerConnection(authUserId: number, stream: MediaStream) {
             hangUp(authUserId);
         }
     };
-    
+
     // Revert to the simpler, more reliable way of adding tracks
     stream.getTracks().forEach((track) => {
         console.log('[Call] Adding local track to PC:', track);
@@ -119,18 +125,30 @@ function _createPeerConnection(authUserId: number, stream: MediaStream) {
     peerConnection.value = pc;
 }
 
-async function _startLocalStream(): Promise<MediaStream> {
-    console.log('[Call] Requesting local media stream');
+async function _startLocalStream(video: boolean): Promise<MediaStream> {
+    console.log(`[Call] Requesting local media stream (video: ${video})`);
+
+    // If a stream already exists, check if it's the correct type.
+    // If not, stop it before creating a new one.
     if (localStream.value) {
-        console.log('[Call] Local stream already exists.');
-        return localStream.value;
+        const hasVideo = localStream.value.getVideoTracks().length > 0;
+        if (hasVideo !== video) {
+            console.log('[Call] Stream type mismatch. Stopping existing stream.');
+            _stopLocalStream();
+        } else {
+            console.log('[Call] Local stream already exists and matches type.');
+            return localStream.value;
+        }
     }
+
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
             audio: true,
-            video: false,
+            video: video,
         });
         localStream.value = stream;
+        // When a new stream is started, ensure video is marked as enabled
+        isVideoEnabled.value = video;
         return stream;
     } catch (error) {
         console.error('[Call] Error getting user media:', error);
@@ -173,6 +191,9 @@ function hangUp(authUserId: number) {
     incomingCall.value = null;
     otherUserId.value = null;
     iceCandidateQueue.value = [];
+    callType.value = null;
+    isMuted.value = false;
+    isVideoEnabled.value = true;
 
     _setCallState('idle');
 }
@@ -212,6 +233,8 @@ export function useCall(authUserId: number) {
         }
 
         const payload = data.payload as SdpPayload;
+        const type = data.callType || 'audio'; // Default to audio for backward compatibility
+
         if (!payload?.sdp) {
             console.error(
                 '[Call] Invalid SDP payload received in offer',
@@ -221,8 +244,10 @@ export function useCall(authUserId: number) {
         }
 
         otherUserId.value = data.from_user_id;
+        callType.value = type;
         incomingCall.value = {
             from_user_id: data.from_user_id,
+            callType: type,
             payload: payload,
         };
         _setCallState('incoming');
@@ -323,7 +348,7 @@ export function useCall(authUserId: number) {
         isListenerInitialized = true;
     }
 
-    async function initiateCall(calleeId: number) {
+    async function initiateCall(calleeId: number, type: CallType) {
         if (callState.value !== 'idle') {
             console.warn('[Call] Cannot initiate call, already in a call.');
             return;
@@ -332,8 +357,9 @@ export function useCall(authUserId: number) {
         try {
             _setCallState('outgoing');
             otherUserId.value = calleeId;
+            callType.value = type;
 
-            const stream = await _startLocalStream();
+            const stream = await _startLocalStream(type === 'video');
             if (!stream.getTracks().length) {
                 throw new Error(
                     'No local tracks available to create an offer.',
@@ -351,6 +377,7 @@ export function useCall(authUserId: number) {
                 {
                     type: 'call:offer',
                     from_user_id: authUserId,
+                    callType: type,
                     payload: { type: offer.type, sdp: btoa(offer.sdp ?? '') },
                 },
                 calleeId,
@@ -372,9 +399,10 @@ export function useCall(authUserId: number) {
         }
 
         const offerPayload = incomingCall.value.payload;
+        const type = callType.value;
 
         try {
-            const stream = await _startLocalStream();
+            const stream = await _startLocalStream(type === 'video');
             _createPeerConnection(authUserId, stream);
             if (!peerConnection.value)
                 throw new Error('Peer connection not created');
@@ -438,15 +466,25 @@ export function useCall(authUserId: number) {
         });
     }
 
+    function toggleVideo() {
+        if (!localStream.value) return;
+        localStream.value.getVideoTracks().forEach((track) => {
+            track.enabled = !track.enabled;
+            isVideoEnabled.value = !track.enabled;
+        });
+    }
+
     return {
         // State is reactive and shared across the app due to being module-level
         callState: readonly(callState),
+        callType: readonly(callType),
         localStream,
         remoteStream,
         remoteStreamTrigger: readonly(remoteStreamTrigger),
         incomingCall: readonly(incomingCall),
         otherUserId: readonly(otherUserId),
         isMuted: readonly(isMuted),
+        isVideoEnabled: readonly(isVideoEnabled),
 
         // Actions now correctly use the enclosed 'authUserId'
         initiateCall,
@@ -454,5 +492,6 @@ export function useCall(authUserId: number) {
         rejectCall,
         hangUp: () => hangUp(authUserId),
         toggleMute,
+        toggleVideo,
     };
 }

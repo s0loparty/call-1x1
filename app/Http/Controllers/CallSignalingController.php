@@ -14,6 +14,7 @@ class CallSignalingController extends Controller
         $data = $request->validate([
             'type' => ['required', 'string'],
             'to_user_id' => ['required', 'integer', 'exists:users,id'],
+            'callType' => ['nullable', 'string', Rule::in(['audio', 'video'])],
             'payload' => ['nullable', 'array'],
         ]);
 
@@ -28,12 +29,14 @@ class CallSignalingController extends Controller
             'from_user_id' => $fromUserId,
             'to_user_id' => $data['to_user_id'],
             'type' => $data['type'],
+            'callType' => $data['callType'] ?? null,
         ]);
 
         SignalingMessageReceived::dispatch(
             $data['type'],
             $fromUserId,
             (int) $data['to_user_id'],
+            $data['callType'] ?? 'audio',
             $data['payload'] ?? null
         );
 

@@ -5,9 +5,17 @@ import { Head, usePage } from '@inertiajs/vue3'
 import type { BreadcrumbItem, User } from '@/types'
 import { dashboard } from '@/routes'
 import { Button } from '@/components/ui/button'
-import { Phone } from 'lucide-vue-next'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Phone, Video } from 'lucide-vue-next'
 import ActiveCallUI from '@/components/ActiveCallUI.vue'
 import IncomingCallDialog from '@/components/IncomingCallDialog.vue'
+import ActiveVideoCallUI from '@/components/ActiveVideoCallUI.vue'
+import IncomingVideoCallDialog from '@/components/IncomingVideoCallDialog.vue'
 import { Toaster } from '@/components/ui/sonner'
 
 
@@ -21,18 +29,21 @@ const authUser = page.props.auth.user as User
 
 // Dashboard is the master component that initializes and controls the call service
 const { 
-    callState, 
+    callState,
+    callType,
+    localStream,
     remoteStream,
     otherUserId,
     isMuted,
+    isVideoEnabled,
     incomingCall,
     initiateCall,
     acceptCall,
     rejectCall,
     hangUp,
     toggleMute,
+    toggleVideo,
 } = useCall(authUser.id)
-
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -58,15 +69,30 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <p class="font-semibold">{{ user.name }}</p>
                         <p class="text-sm text-muted-foreground">{{ user.email }}</p>
                     </div>
-                    <Button
-                        @click="initiateCall(user.id)"
-                        :disabled="callState !== 'idle'"
-                        size="sm"
-                        variant="outline"
-                    >
-                        <Phone class="w-4 h-4 mr-2" />
-                        Call
-                    </Button>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                             <Button
+                                :disabled="callState !== 'idle'"
+                                size="sm"
+                                variant="outline"
+                            >
+                                <Phone class="w-4 h-4 mr-2" />
+                                Call
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem @click="initiateCall(user.id, 'audio')">
+                                <Phone class="w-4 h-4 mr-2" />
+                                Audio Call
+                            </DropdownMenuItem>
+                            <DropdownMenuItem @click="initiateCall(user.id, 'video')">
+                                <Video class="w-4 h-4 mr-2" />
+                                Video Call
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                 </div>
             </div>
              <div v-if="!props.users.length" class="text-center text-muted-foreground mt-8">
@@ -75,7 +101,29 @@ const breadcrumbs: BreadcrumbItem[] = [
         </div>
 
         <!-- Call UI Components -->
-        <ActiveCallUI 
+        <ActiveVideoCallUI
+            v-if="callType === 'video'"
+            :call-state="callState"
+            :local-stream="localStream"
+            :remote-stream="remoteStream"
+            :other-user-id="otherUserId"
+            :is-muted="isMuted"
+            :is-video-enabled="isVideoEnabled"
+            @hang-up="hangUp"
+            @toggle-mute="toggleMute"
+            @toggle-video="toggleVideo"
+        />
+        <IncomingVideoCallDialog
+            v-if="callType === 'video'"
+            :call-state="callState"
+            :incoming-call="incomingCall"
+            @accept="acceptCall"
+            @reject="rejectCall"
+        />
+
+        <!-- Audio Call Components -->
+        <ActiveCallUI
+            v-if="callType !== 'video'"
             :call-state="callState"
             :remote-stream="remoteStream"
             :other-user-id="otherUserId"
@@ -83,12 +131,14 @@ const breadcrumbs: BreadcrumbItem[] = [
             @hang-up="hangUp"
             @toggle-mute="toggleMute"
         />
-        <IncomingCallDialog 
+        <IncomingCallDialog
+            v-if="callType !== 'video'"
             :call-state="callState"
             :incoming-call="incomingCall"
             @accept="acceptCall"
             @reject="rejectCall"
         />
+
         <Toaster />
 
     </AppLayout>

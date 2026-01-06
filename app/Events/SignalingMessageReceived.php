@@ -21,6 +21,7 @@ class SignalingMessageReceived implements ShouldBroadcast
         public readonly string $type,
         public readonly int $fromUserId,
         public readonly int $toUserId,
+        public readonly string $callType,
         public readonly ?array $payload = null
     ) {
     }
@@ -57,6 +58,7 @@ class SignalingMessageReceived implements ShouldBroadcast
         return [
             'type' => $this->type,
             'from_user_id' => $this->fromUserId,
+            'callType' => $this->callType,
             'payload' => $this->payload,
         ];
     }

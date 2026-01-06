@@ -69,6 +69,8 @@ const modalConfig = computed<{
     };
 });
 
+
+
 const handleModalNextStep = () => {
     if (props.requiresConfirmation) {
         showVerificationStep.value = true;
@@ -261,8 +263,9 @@ watch(
                                 </InputOTP>
                                 <InputError
                                     :message="
-                                        errors?.confirmTwoFactorAuthentication
-                                            ?.code
+                                        (errors.confirmTwoFactorAuthentication && typeof errors.confirmTwoFactorAuthentication === 'object')
+                                            ? (errors.confirmTwoFactorAuthentication as { code?: string }).code
+                                            : (errors.confirmTwoFactorAuthentication || '')
                                     "
                                 />
                             </div>

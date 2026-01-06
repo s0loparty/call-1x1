@@ -9,7 +9,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import type { CallState, IncomingCall } from '@/composables/useCall';
-import { Phone, PhoneOff } from 'lucide-vue-next';
+import { Phone, PhoneOff, Video } from 'lucide-vue-next';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import CallMusic from '../../assets/call.mp3';
 
@@ -20,7 +20,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['accept', 'reject']);
 
-const showDialog = computed(() => props.callState === 'incoming' && (props.incomingCall?.callType === 'audio' || !props.incomingCall?.callType));
+const showDialog = computed(() => props.callState === 'incoming' && props.incomingCall?.callType === 'video');
 const ringtoneAudio = ref<HTMLAudioElement | null>(null);
 
 watch(
@@ -54,11 +54,12 @@ onUnmounted(() => {
     <Dialog :open="showDialog">
         <DialogContent class="sm:max-w-[425px]" :show-close-button="false">
             <DialogHeader>
-                <DialogTitle class="text-center text-2xl"
-                    >Incoming Call</DialogTitle
-                >
+                <DialogTitle class="flex items-center justify-center gap-2 text-center text-2xl">
+                    <Video class="h-8 w-8" />
+                    <span>Incoming Video Call</span>
+                </DialogTitle>
                 <DialogDescription class="text-center">
-                    You have an incoming call from user ID:
+                    You have an incoming video call from user ID:
                     {{ incomingCall?.from_user_id }}
                 </DialogDescription>
             </DialogHeader>
