@@ -25,6 +25,7 @@ services:
     networks: [appnet]
     depends_on:
       - redis
+      - mariadb
 
   queue:
     image: playerinlife/app:latest
