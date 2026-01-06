@@ -8,6 +8,8 @@ RUN apk add --no-cache \
 # PHP extensions
 RUN docker-php-ext-install \
     pdo pdo_mysql intl mbstring zip
+RUN docker-php-ext-install pcntl \
+    docker-php-ext-configure pcntl --enable-pcntl
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
