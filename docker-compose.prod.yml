@@ -63,7 +63,7 @@ services:
       - '3478:3478/udp'
       - '49160-49200:49160-49200/udp'
     environment:
-      TURN_REALM: call.playerinlife.ru
+      TURN_REALM: call1x1.playerinlife.ru
       TURN_USER: turnuser
       TURN_PASSWORD: strongpassword
     networks: [appnet]
