@@ -10,11 +10,14 @@ call.playerinlife.ru {
     # WebSocket Reverb — ОБЯЗАТЕЛЬНО ПЕРВЫМ
     #
     @reverb {
-        path /app/{$REVERB_APP_ID}*
-        header Connection *Upgrade*
+        path /app/*
         header Upgrade websocket
     }
-    reverse_proxy @reverb reverb:8080
+    reverse_proxy @reverb reverb:8080 {
+        header_up Host {host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For {remote}
+    }
 
     #
     # Laravel / Inertia
