@@ -27,7 +27,7 @@ services:
 
   queue:
     image: playerinlife/app:latest
-    command: php artisan queue:work --sleep=3 --tries=3
+    command: php artisan queue:work --verbose --sleep=3 --tries=3
     restart: unless-stopped
     env_file: .env
     volumes:
