@@ -33,10 +33,6 @@ export interface IncomingCall {
 }
 
 // --- Constants ---
-
-console.log(import.meta.env);
-console.log(import.meta.env.VITE_TURN_USERNAME);
-
 const ICE_SERVERS: RTCConfiguration = {
     iceServers: [
         {
