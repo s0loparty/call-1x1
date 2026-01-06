@@ -54,9 +54,9 @@ services:
     image: instrumentisto/coturn
     restart: unless-stopped
     ports:
-      - "3478:3478"
-      - "3478:3478/udp"
-      - "49160-49200:49160-49200/udp"
+      - '3478:3478'
+      - '3478:3478/udp'
+      - '49160-49200:49160-49200/udp'
     environment:
       TURN_REALM: call.playerinlife.ru
       TURN_USER: turnuser
@@ -67,10 +67,11 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
     volumes:
+      - ./public:/var/www/html/public
       - ./docker/prod/Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
