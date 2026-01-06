@@ -42,7 +42,7 @@ const ICE_SERVERS: RTCConfiguration = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         {
-            urls: 'turn:call.playerinlife.ru:3478',
+            urls: import.meta.env.VITE_TURN_SERVER,
             username: import.meta.env.VITE_TURN_USERNAME,
             credential: import.meta.env.VITE_TURN_PASSWORD,
         },
