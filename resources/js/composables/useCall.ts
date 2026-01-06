@@ -33,16 +33,21 @@ export interface IncomingCall {
 }
 
 // --- Constants ---
+
+const iceServers: RTCIceServer[] = [
+    { urls: 'stun:stun.l.google.com:19302' },
+];
+
+if (import.meta.env.VITE_TURN_URL) {
+    iceServers.push({
+        urls: import.meta.env.VITE_TURN_URL,
+        username: import.meta.env.VITE_TURN_USERNAME,
+        credential: import.meta.env.VITE_TURN_PASSWORD,
+    });
+}
+
 const ICE_SERVERS: RTCConfiguration = {
-    iceServers: [
-        {
-            urls: import.meta.env.VITE_TURN_SERVER,
-            username: import.meta.env.VITE_TURN_USERNAME,
-            credential: import.meta.env.VITE_TURN_PASSWORD,
-        },
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-    ],
+    iceServers: iceServers,
 };
 
 // --- Module-level state (Singleton Pattern) ---
@@ -50,6 +55,7 @@ const callState: Ref<CallState> = ref('idle');
 const peerConnection: Ref<RTCPeerConnection | null> = ref(null);
 const localStream: Ref<MediaStream | null> = ref(null);
 const remoteStream: Ref<MediaStream | null> = ref(null);
+const remoteStreamTrigger = ref(0);
 const incomingCall: Ref<IncomingCall | null> = ref(null);
 const isMuted = ref(false);
 const otherUserId: Ref<number | null> = ref(null);
@@ -71,8 +77,8 @@ async function sendSignal(data: SignalingData, toUserId: number) {
     }
 }
 
-function _createPeerConnection(authUserId: number) {
-    console.log('[Call] Creating RTCPeerConnection');
+function _createPeerConnection(authUserId: number, stream: MediaStream) {
+    console.log('[Call] Creating RTCPeerConnection with ICE servers:', ICE_SERVERS.iceServers)
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     pc.onicecandidate = (event) => {
@@ -89,8 +95,9 @@ function _createPeerConnection(authUserId: number) {
     };
 
     pc.ontrack = (event) => {
-        console.log('[Call] Remote track received');
+        console.log('[Call] Remote track received:', event.track);
         remoteStream.value = event.streams[0];
+        remoteStreamTrigger.value++;
     };
 
     pc.onconnectionstatechange = () => {
@@ -100,22 +107,23 @@ function _createPeerConnection(authUserId: number) {
             hangUp(authUserId);
         }
     };
+    
+    // Revert to the simpler, more reliable way of adding tracks
+    stream.getTracks().forEach((track) => {
+        console.log('[Call] Adding local track to PC:', track);
+        pc.addTrack(track, stream);
+    });
 
-    if (localStream.value) {
-        localStream.value.getTracks().forEach((track) => {
-            console.log('[Call] Adding local track to PC');
-            pc.addTrack(track, localStream.value!);
-        });
-    }
+    console.log('[Call DEBUG] Senders after adding tracks:', pc.getSenders());
 
     peerConnection.value = pc;
 }
 
-async function _startLocalStream() {
+async function _startLocalStream(): Promise<MediaStream> {
     console.log('[Call] Requesting local media stream');
     if (localStream.value) {
         console.log('[Call] Local stream already exists.');
-        return;
+        return localStream.value;
     }
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -123,6 +131,7 @@ async function _startLocalStream() {
             video: false,
         });
         localStream.value = stream;
+        return stream;
     } catch (error) {
         console.error('[Call] Error getting user media:', error);
         _setCallState('idle');
@@ -324,14 +333,14 @@ export function useCall(authUserId: number) {
             _setCallState('outgoing');
             otherUserId.value = calleeId;
 
-            await _startLocalStream();
-            if (!localStream.value?.getTracks().length) {
+            const stream = await _startLocalStream();
+            if (!stream.getTracks().length) {
                 throw new Error(
                     'No local tracks available to create an offer.',
                 );
             }
 
-            _createPeerConnection(authUserId);
+            _createPeerConnection(authUserId, stream);
             if (!peerConnection.value)
                 throw new Error('Peer connection not created');
 
@@ -365,8 +374,8 @@ export function useCall(authUserId: number) {
         const offerPayload = incomingCall.value.payload;
 
         try {
-            await _startLocalStream();
-            _createPeerConnection(authUserId);
+            const stream = await _startLocalStream();
+            _createPeerConnection(authUserId, stream);
             if (!peerConnection.value)
                 throw new Error('Peer connection not created');
 
@@ -434,6 +443,7 @@ export function useCall(authUserId: number) {
         callState: readonly(callState),
         localStream,
         remoteStream,
+        remoteStreamTrigger: readonly(remoteStreamTrigger),
         incomingCall: readonly(incomingCall),
         otherUserId: readonly(otherUserId),
         isMuted: readonly(isMuted),
