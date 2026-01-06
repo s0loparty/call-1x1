@@ -9,16 +9,13 @@ call.playerinlife.ru {
     #
     # 🔥 Reverb WebSocket — БЕЗ ОБРЕЗКИ PATH
     #
+    @reverb path /app/*
     handle @reverb {
         reverse_proxy reverb:8080 {
             header_up Host {host}
             header_up X-Forwarded-Proto {scheme}
             header_up X-Forwarded-For {remote}
         }
-    }
-
-    @reverb {
-        path /app/*
     }
 
     #
