@@ -34,18 +34,18 @@ export interface IncomingCall {
 
 // --- Constants ---
 
+console.log(import.meta.env);
+console.log(import.meta.env.VITE_TURN_USERNAME);
+
 const ICE_SERVERS: RTCConfiguration = {
-    //   iceServers: [
-    //     { urls: 'stun:stun.l.google.com:19302' },
-    //     { urls: 'stun:stun1.l.google.com:19302' },
-    //   ],
     iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
         {
             urls: import.meta.env.VITE_TURN_SERVER,
             username: import.meta.env.VITE_TURN_USERNAME,
             credential: import.meta.env.VITE_TURN_PASSWORD,
         },
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
     ],
 };
 

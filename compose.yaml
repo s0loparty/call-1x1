@@ -65,6 +65,21 @@ services:
                 - '--innodb_initialized'
             retries: 3
             timeout: 5s
+
+    turn:
+        image: instrumentisto/coturn
+        restart: unless-stopped
+        ports:
+            - '3478:3478'
+            - '3478:3478/udp'
+            - '49160-49200:49160-49200/udp'
+        environment:
+            TURN_REALM: localhost
+            TURN_USER: turnuser
+            TURN_PASSWORD: strongpassword
+        networks:
+            - sail
+
 networks:
     sail:
         driver: bridge
