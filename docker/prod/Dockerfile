@@ -13,9 +13,7 @@ RUN docker-php-ext-configure pcntl --enable-pcntl \
         intl \
         mbstring \
         zip \
-        pcntl \
-        sockets
-
+        pcntl
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
