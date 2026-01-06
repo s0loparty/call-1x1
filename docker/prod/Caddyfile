@@ -3,16 +3,17 @@
 }
 
 call.playerinlife.ru {
+    root * /var/www/html/public
+    file_server
 
-  # Reverb WebSocket
-  reverse_proxy /app/* reverb:8080 {
-    header_up Host {host}
-    header_up X-Forwarded-Proto {scheme}
-  }
+    # Reverb WebSocket
+    reverse_proxy /app/* reverb:8080 {
+        header_up Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
 
-  # Laravel app
-  reverse_proxy app:9000 {
-    header_up Host {host}
-    header_up X-Forwarded-Proto {scheme}
-  }
+    # Laravel app (PHP-FPM)
+    php_fastcgi app:9000
+
+    encode zstd gzip
 }
