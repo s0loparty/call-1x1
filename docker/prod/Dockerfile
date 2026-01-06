@@ -1,4 +1,4 @@
-FROM php:8.5-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 # System deps
 RUN apk add --no-cache \
@@ -13,7 +13,8 @@ RUN docker-php-ext-configure pcntl --enable-pcntl \
         intl \
         mbstring \
         zip \
-        pcntl
+        pcntl \
+        sockets
 
 
 # Composer

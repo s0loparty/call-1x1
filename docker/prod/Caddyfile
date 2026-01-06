@@ -17,6 +17,9 @@ call.playerinlife.ru {
         header_up Host {host}
         header_up X-Forwarded-For {remote}
         header_up X-Forwarded-Proto {scheme}
+
+        header_up Connection {header.Connection}
+        header_up Upgrade {header.Upgrade}
     }
 
     #
