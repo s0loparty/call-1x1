@@ -15,7 +15,7 @@ services:
 
   reverb:
     image: playerinlife/app:latest
-    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080 --debug
     restart: unless-stopped
     env_file: .env
     volumes:
