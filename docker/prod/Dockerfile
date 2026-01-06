@@ -6,9 +6,14 @@ RUN apk add --no-cache \
     libzip-dev nodejs npm
 
 # PHP extensions
-RUN docker-php-ext-install \
-    pdo pdo_mysql intl mbstring zip pcntl \
-    docker-php-ext-configure pcntl --enable-pcntl
+RUN docker-php-ext-configure pcntl --enable-pcntl \
+    && docker-php-ext-install \
+        pdo \
+        pdo_mysql \
+        intl \
+        mbstring \
+        zip \
+        pcntl
 
 
 # Composer
