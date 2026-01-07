@@ -42,3 +42,6 @@ RUN npm install && npm run build
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data
+
+# Caddy
+RUN apk add --no-cache caddy
