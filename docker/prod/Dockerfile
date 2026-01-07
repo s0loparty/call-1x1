@@ -38,14 +38,14 @@ RUN composer install \
 # Frontend build
 RUN npm install && npm run build
 
-# Copy Caddyfile
-COPY docker/prod/Caddyfile /etc/caddy/Caddyfile
+# Copy Caddyfile to the location FrankenPHP expects
+COPY docker/prod/Caddyfile /etc/frankenphp/Caddyfile
 
-# Caddy data dir
-RUN mkdir -p /data/caddy \
-    && chown -R www-data:www-data /data
+# Create and set permissions for Caddy's data and config directories
+RUN mkdir -p /data/caddy /config/caddy \
+    && chown -R www-data:www-data /data /config
 
-# Permissions
+# Permissions for Laravel
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data
