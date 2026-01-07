@@ -1,4 +1,4 @@
-FROM php:8.4-fpm-alpine
+FROM dunglas/frankenphp:1-php8.4-alpine
 
 # System deps
 RUN apk add --no-cache \
@@ -45,3 +45,7 @@ RUN apk add --no-cache caddy
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data
+
+EXPOSE 80
+
+CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

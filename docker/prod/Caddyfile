@@ -3,34 +3,16 @@
 }
 
 call1x1.playerinlife.ru {
+
+    root * /var/www/html/public
     encode zstd gzip
 
-    # 🔥 Reverb WebSocket — БЕЗ ОБРЕЗКИ PATH
+    # Reverb
     @reverb {
         path /app/* /apps/*
     }
-    handle @reverb {
-        reverse_proxy reverb:8080 {
-            header_up Host {host}
-            header_up X-Forwarded-Proto {scheme}
-            header_up X-Forwarded-For {remote}
-        }
-    }
+    reverse_proxy @reverb reverb:8080
 
-    # Laravel / Inertia / Assets
-    handle {
-        reverse_proxy app:9000
-    }
-
-    # Security
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Frame-Options "SAMEORIGIN"
-        X-Content-Type-Options "nosniff"
-    }
-
-    log {
-        output stdout
-        format console
-    }
+    php_fastcgi unix//var/run/php/php-fpm.sock
+    file_server
 }

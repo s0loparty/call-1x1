@@ -62,23 +62,23 @@ services:
       TURN_PASSWORD: strongpassword
     networks: [appnet]
 
-  caddy:
-    image: playerinlife/app:latest
-    # env_file: .env
-    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
-    restart: unless-stopped
-    ports:
-      - '80:80'
-      - '443:443'
-      - '443:443/udp'
-    volumes:
-      - ./docker/prod/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks: [appnet]
-    depends_on:
-      - app
-      - reverb
+  # caddy:
+  #   image: playerinlife/app:latest
+  #   # env_file: .env
+  #   command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+  #   restart: unless-stopped
+  #   ports:
+  #     - '80:80'
+  #     - '443:443'
+  #     - '443:443/udp'
+  #   volumes:
+  #     - ./docker/prod/Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   networks: [appnet]
+  #   depends_on:
+  #     - app
+  #     - reverb
 
 networks:
   appnet:
