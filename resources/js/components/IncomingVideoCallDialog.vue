@@ -15,12 +15,12 @@ import CallMusic from '../../assets/call.mp3';
 
 const props = defineProps<{
     callState: CallState;
-    incomingCall: IncomingCall | null;
+    callerName: string | null;
 }>();
 
 const emit = defineEmits(['accept', 'reject']);
 
-const showDialog = computed(() => props.callState === 'incoming' && props.incomingCall?.callType === 'video');
+const showDialog = computed(() => props.callState === 'incoming');
 const ringtoneAudio = ref<HTMLAudioElement | null>(null);
 
 watch(
@@ -56,32 +56,32 @@ onUnmounted(() => {
             <DialogHeader>
                 <DialogTitle class="flex items-center justify-center gap-2 text-center text-2xl">
                     <Video class="h-8 w-8" />
-                    <span>Incoming Video Call</span>
+                    <span>Входящий видеозвонок</span>
                 </DialogTitle>
                 <DialogDescription class="text-center">
-                    You have an incoming video call from user ID:
-                    {{ incomingCall?.from_user_id }}
+                    Вам поступил входящий видеозвонок от
+                    {{ callerName }}
                 </DialogDescription>
             </DialogHeader>
 
-            <DialogFooter class="gap-4 pt-4 sm:justify-center">
+            <DialogFooter class="flex flex-row justify-center gap-4 pt-4 sm:justify-center">
                 <Button
                     @click="emit('reject')"
                     variant="destructive"
                     size="lg"
-                    class="aspect-square h-16 w-16 rounded-full p-4"
+                    class="aspect-square h-12 w-12 rounded-full p-4"
                 >
                     <PhoneOff class="h-8 w-8" />
-                    <span class="sr-only">Reject</span>
+                    <span class="sr-only">Отклонить</span>
                 </Button>
                 <Button
                     @click="emit('accept')"
                     variant="default"
                     size="lg"
-                    class="aspect-square h-16 w-16 rounded-full bg-green-500 p-4 hover:bg-green-600"
+                    class="aspect-square h-12 w-12 rounded-full bg-green-500 p-4 hover:bg-green-600"
                 >
                     <Phone class="h-8 w-8" />
-                    <span class="sr-only">Accept</span>
+                    <span class="sr-only">Принять</span>
                 </Button>
             </DialogFooter>
         </DialogContent>

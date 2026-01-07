@@ -8,24 +8,19 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import type { CallState, IncomingCall } from '@/composables/useCall';
+import type { CallState } from '@/composables/useCall';
 import { Phone, PhoneOff } from 'lucide-vue-next';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import CallMusic from '../../assets/call.mp3';
 
 const props = defineProps<{
     callState: CallState;
-    incomingCall: IncomingCall | null;
+    callerName: string | null;
 }>();
 
 const emit = defineEmits(['accept', 'reject']);
 
-const showDialog = computed(
-    () =>
-        props.callState === 'incoming' &&
-        (props.incomingCall?.callType === 'audio' ||
-            !props.incomingCall?.callType),
-);
+const showDialog = computed(() => props.callState === 'incoming');
 const ringtoneAudio = ref<HTMLAudioElement | null>(null);
 
 watch(
@@ -60,11 +55,11 @@ onUnmounted(() => {
         <DialogContent class="sm:max-w-[425px]" :show-close-button="false">
             <DialogHeader>
                 <DialogTitle class="text-center text-2xl"
-                    >Incoming Call</DialogTitle
+                    >Входящий звонок</DialogTitle
                 >
                 <DialogDescription class="text-center">
-                    You have an incoming call from user ID:
-                    {{ incomingCall?.from_user_id }}
+                    Вам поступил входящий вызов от
+                    {{ callerName }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -78,7 +73,7 @@ onUnmounted(() => {
                     class="aspect-square h-12 w-12 rounded-full p-4"
                 >
                     <PhoneOff class="h-8 w-8" />
-                    <span class="sr-only">Reject</span>
+                    <span class="sr-only">Отклонить</span>
                 </Button>
                 <Button
                     @click="emit('accept')"
@@ -87,7 +82,7 @@ onUnmounted(() => {
                     class="aspect-square h-12 w-12 rounded-full bg-green-500 p-4 hover:bg-green-600"
                 >
                     <Phone class="h-8 w-8" />
-                    <span class="sr-only">Accept</span>
+                    <span class="sr-only">Принять</span>
                 </Button>
             </DialogFooter>
         </DialogContent>

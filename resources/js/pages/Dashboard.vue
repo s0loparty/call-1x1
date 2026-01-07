@@ -17,7 +17,7 @@ import { dashboard } from '@/routes';
 import type { BreadcrumbItem, User } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
 import { Phone, Video } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import DialTone from '../../assets/gudki.mp3';
 
 interface Props {
@@ -47,6 +47,23 @@ const {
 } = useCall(authUser.id);
 
 const dialToneAudio = ref<HTMLAudioElement | null>(null);
+
+// Create a Map for efficient user lookup by ID
+const usersById = computed(() =>
+    new Map(props.users.map((user) => [user.id, user])),
+);
+
+const otherUserName = computed(() => {
+    if (!otherUserId.value) return 'Unknown User';
+    return usersById.value.get(otherUserId.value)?.name ?? `User ID: ${otherUserId.value}`;
+});
+
+const incomingCallerName = computed(() => {
+    if (!incomingCall.value) return 'Unknown Caller';
+    const callerId = incomingCall.value.from_user_id;
+    return usersById.value.get(callerId)?.name ?? `User ID: ${callerId}`;
+});
+
 
 watch(callState, (newState, oldState) => {
     if (!dialToneAudio.value) return;
@@ -130,7 +147,7 @@ const breadcrumbs: BreadcrumbItem[] = [
             :call-state="callState"
             :local-stream="localStream"
             :remote-stream="remoteStream"
-            :other-user-id="otherUserId"
+            :other-user-name="otherUserName"
             :is-muted="isMuted"
             :is-video-enabled="isVideoEnabled"
             @hang-up="hangUp"
@@ -140,7 +157,7 @@ const breadcrumbs: BreadcrumbItem[] = [
         <IncomingVideoCallDialog
             v-if="callType === 'video'"
             :call-state="callState"
-            :incoming-call="incomingCall"
+            :caller-name="incomingCallerName"
             @accept="acceptCall"
             @reject="rejectCall"
         />
@@ -150,7 +167,7 @@ const breadcrumbs: BreadcrumbItem[] = [
             v-if="callType !== 'video'"
             :call-state="callState"
             :remote-stream="remoteStream"
-            :other-user-id="otherUserId"
+            :other-user-name="otherUserName"
             :is-muted="isMuted"
             @hang-up="hangUp"
             @toggle-mute="toggleMute"
@@ -158,7 +175,7 @@ const breadcrumbs: BreadcrumbItem[] = [
         <IncomingCallDialog
             v-if="callType !== 'video'"
             :call-state="callState"
-            :incoming-call="incomingCall"
+            :caller-name="incomingCallerName"
             @accept="acceptCall"
             @reject="rejectCall"
         />

@@ -7,7 +7,7 @@ import { computed, ref, watch } from 'vue';
 const props = defineProps<{
     callState: CallState;
     remoteStream: MediaStream | null;
-    otherUserId: number | null;
+    otherUserName: string | null;
     isMuted: boolean;
 }>();
 
@@ -50,10 +50,10 @@ watch(
             class="w-full max-w-sm rounded-xl border bg-card p-6 text-center text-card-foreground shadow-lg"
         >
             <h2 class="text-2xl font-bold">
-                {{ callState === 'outgoing' ? 'Calling...' : 'In Call' }}
+                {{ callState === 'outgoing' ? 'Вызов...' : 'В разговоре' }}
             </h2>
             <p class="mt-2 text-muted-foreground">
-                With user ID: {{ otherUserId }}
+                с {{ otherUserName }}
             </p>
 
             <!-- Audio element to play the remote stream -->
@@ -83,7 +83,7 @@ watch(
                 v-if="callState === 'terminating'"
                 class="mt-4 text-muted-foreground"
             >
-                Ending call...
+                Завершение вызова...
             </p>
         </div>
     </div>

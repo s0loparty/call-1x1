@@ -8,7 +8,7 @@ const props = defineProps<{
     callState: CallState;
     localStream: MediaStream | null;
     remoteStream: MediaStream | null;
-    otherUserId: number | null;
+    otherUserName: string | null;
     isMuted: boolean;
 }>();
 
@@ -83,10 +83,10 @@ function handleToggleVideo() {
             class="absolute left-1/2 top-8 -translate-x-1/2 rounded-lg bg-black/30 px-4 py-2"
         >
             <h2 class="text-xl font-bold">
-                {{ callState === 'outgoing' ? 'Calling...' : 'In Call' }}
+                {{ callState === 'outgoing' ? 'Вызов...' : 'В разговоре' }}
             </h2>
             <p class="text-center text-sm">
-                With user ID: {{ otherUserId }}
+                с {{ otherUserName }}
             </p>
         </div>
 
@@ -126,7 +126,7 @@ function handleToggleVideo() {
             v-if="callState === 'terminating'"
             class="absolute bottom-32 left-1/2 -translate-x-1/2 text-lg"
         >
-            Ending call...
+            Завершение вызова...
         </p>
     </div>
 </template>
