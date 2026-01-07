@@ -38,14 +38,14 @@ RUN composer install \
 # Frontend build
 RUN npm install && npm run build
 
-# Caddy
-RUN apk add --no-cache caddy
+# Copy Caddyfile
+COPY docker/prod/Caddyfile /etc/caddy/Caddyfile
+
+# Caddy data dir
+RUN mkdir -p /data/caddy \
+    && chown -R www-data:www-data /data
 
 # Permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data
-
-EXPOSE 80
-
-CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

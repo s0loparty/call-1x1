@@ -6,7 +6,13 @@ services:
     image: playerinlife/app:latest
     restart: unless-stopped
     env_file: .env
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
     networks: [appnet]
+    volumes:
+      - caddy_data:/data
     depends_on:
       - mariadb
       - redis
@@ -57,28 +63,10 @@ services:
       - '3478:3478/udp'
       - '49160-49200:49160-49200/udp'
     environment:
-      TURN_REALM: call1x1.playerinlife.ru
-      TURN_USER: turnuser
-      TURN_PASSWORD: strongpassword
+      TURN_REALM: ${TURN_REALM}
+      TURN_USER: ${TURN_USERNAME}
+      TURN_PASSWORD: ${TURN_PASSWORD}
     networks: [appnet]
-
-  # caddy:
-  #   image: playerinlife/app:latest
-  #   # env_file: .env
-  #   command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
-  #   restart: unless-stopped
-  #   ports:
-  #     - '80:80'
-  #     - '443:443'
-  #     - '443:443/udp'
-  #   volumes:
-  #     - ./docker/prod/Caddyfile:/etc/caddy/Caddyfile:ro
-  #     - caddy_data:/data
-  #     - caddy_config:/config
-  #   networks: [appnet]
-  #   depends_on:
-  #     - app
-  #     - reverb
 
 networks:
   appnet:

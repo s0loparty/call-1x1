@@ -13,6 +13,6 @@ call1x1.playerinlife.ru {
     }
     reverse_proxy @reverb reverb:8080
 
-    php_fastcgi unix//var/run/php/php-fpm.sock
+    php_server
     file_server
 }
