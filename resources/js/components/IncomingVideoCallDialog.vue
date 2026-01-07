@@ -24,18 +24,18 @@ const showDialog = computed(() => props.callState === 'incoming' && props.incomi
 const ringtoneAudio = ref<HTMLAudioElement | null>(null);
 
 watch(
-    showDialog,
-    (isShowing) => {
-        if (ringtoneAudio.value) {
+    [showDialog, ringtoneAudio],
+    ([isShowing, audioEl]) => {
+        if (audioEl) {
             if (isShowing) {
-                ringtoneAudio.value
+                audioEl
                     .play()
                     .catch((e) =>
                         console.error('Ringtone playback failed:', e),
                     );
             } else {
-                ringtoneAudio.value.pause();
-                ringtoneAudio.value.currentTime = 0;
+                audioEl.pause();
+                audioEl.currentTime = 0;
             }
         }
     },
