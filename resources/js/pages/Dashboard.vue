@@ -1,34 +1,35 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue'
-import { useCall } from '@/composables/useCall'
-import { Head, usePage } from '@inertiajs/vue3'
-import type { BreadcrumbItem, User } from '@/types'
-import { dashboard } from '@/routes'
-import { Button } from '@/components/ui/button'
+import ActiveCallUI from '@/components/ActiveCallUI.vue';
+import ActiveVideoCallUI from '@/components/ActiveVideoCallUI.vue';
+import IncomingCallDialog from '@/components/IncomingCallDialog.vue';
+import IncomingVideoCallDialog from '@/components/IncomingVideoCallDialog.vue';
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Phone, Video } from 'lucide-vue-next'
-import ActiveCallUI from '@/components/ActiveCallUI.vue'
-import IncomingCallDialog from '@/components/IncomingCallDialog.vue'
-import ActiveVideoCallUI from '@/components/ActiveVideoCallUI.vue'
-import IncomingVideoCallDialog from '@/components/IncomingVideoCallDialog.vue'
-import { Toaster } from '@/components/ui/sonner'
-
+} from '@/components/ui/dropdown-menu';
+import { Toaster } from '@/components/ui/sonner';
+import { useCall } from '@/composables/useCall';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import type { BreadcrumbItem, User } from '@/types';
+import { Head, usePage } from '@inertiajs/vue3';
+import { Phone, Video } from 'lucide-vue-next';
+import { ref, watch } from 'vue';
+import DialTone from '../../assets/gudki.mp3';
 
 interface Props {
     users: User[];
 }
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
-const page = usePage()
-const authUser = page.props.auth.user as User
+const page = usePage();
+const authUser = page.props.auth.user as User;
 
 // Dashboard is the master component that initializes and controls the call service
-const { 
+const {
     callState,
     callType,
     localStream,
@@ -43,7 +44,22 @@ const {
     hangUp,
     toggleMute,
     toggleVideo,
-} = useCall(authUser.id)
+} = useCall(authUser.id);
+
+const dialToneAudio = ref<HTMLAudioElement | null>(null);
+
+watch(callState, (newState, oldState) => {
+    if (!dialToneAudio.value) return;
+
+    if (newState === 'outgoing') {
+        dialToneAudio.value
+            .play()
+            .catch((e) => console.error('Dial tone playback failed:', e));
+    } else if (oldState === 'outgoing') {
+        dialToneAudio.value.pause();
+        dialToneAudio.value.currentTime = 0;
+    }
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -58,44 +74,52 @@ const breadcrumbs: BreadcrumbItem[] = [
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="p-4">
-            <h1 class="text-2xl font-bold mb-4">Users</h1>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <h1 class="mb-4 text-2xl font-bold">Users</h1>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div
                     v-for="user in props.users"
                     :key="user.id"
-                    class="p-4 border rounded-lg flex items-center justify-between"
+                    class="flex items-center justify-between rounded-lg border p-4"
                 >
                     <div>
                         <p class="font-semibold">{{ user.name }}</p>
-                        <p class="text-sm text-muted-foreground">{{ user.email }}</p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ user.email }}
+                        </p>
                     </div>
 
                     <DropdownMenu>
                         <DropdownMenuTrigger as-child>
-                             <Button
+                            <Button
                                 :disabled="callState !== 'idle'"
                                 size="sm"
                                 variant="outline"
                             >
-                                <Phone class="w-4 h-4 mr-2" />
+                                <Phone class="mr-2 h-4 w-4" />
                                 Call
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                            <DropdownMenuItem @click="initiateCall(user.id, 'audio')">
-                                <Phone class="w-4 h-4 mr-2" />
+                            <DropdownMenuItem
+                                @click="initiateCall(user.id, 'audio')"
+                            >
+                                <Phone class="mr-2 h-4 w-4" />
                                 Audio Call
                             </DropdownMenuItem>
-                            <DropdownMenuItem @click="initiateCall(user.id, 'video')">
-                                <Video class="w-4 h-4 mr-2" />
+                            <DropdownMenuItem
+                                @click="initiateCall(user.id, 'video')"
+                            >
+                                <Video class="mr-2 h-4 w-4" />
                                 Video Call
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-
                 </div>
             </div>
-             <div v-if="!props.users.length" class="text-center text-muted-foreground mt-8">
+            <div
+                v-if="!props.users.length"
+                class="mt-8 text-center text-muted-foreground"
+            >
                 No other users available to call.
             </div>
         </div>
@@ -141,5 +165,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 
         <Toaster />
 
+        <!-- Audio element for dial tone -->
+        <audio
+            ref="dialToneAudio"
+            :src="DialTone"
+            loop
+            preload="auto"
+            volume="0.1"
+        ></audio>
     </AppLayout>
 </template>

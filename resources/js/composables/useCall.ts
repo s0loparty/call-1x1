@@ -1,7 +1,8 @@
 import { signal as routeSignal } from '@/routes/call';
 import { useEcho } from '@laravel/echo-vue';
 import axios from 'axios';
-import { readonly, ref, type Ref } from 'vue';
+import { readonly, ref, Ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 // --- Types ---
 
@@ -38,9 +39,7 @@ export interface IncomingCall {
 
 // --- Constants ---
 
-const iceServers: RTCIceServer[] = [
-    { urls: 'stun:stun.l.google.com:19302' },
-];
+const iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
 
 if (import.meta.env.VITE_TURN_URL) {
     iceServers.push({
@@ -84,7 +83,10 @@ async function sendSignal(data: SignalingData, toUserId: number) {
 }
 
 function _createPeerConnection(authUserId: number, stream: MediaStream) {
-    console.log('[Call] Creating RTCPeerConnection with ICE servers:', ICE_SERVERS.iceServers)
+    console.log(
+        '[Call] Creating RTCPeerConnection with ICE servers:',
+        ICE_SERVERS.iceServers,
+    );
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     pc.onicecandidate = (event) => {
@@ -133,7 +135,9 @@ async function _startLocalStream(video: boolean): Promise<MediaStream> {
     if (localStream.value) {
         const hasVideo = localStream.value.getVideoTracks().length > 0;
         if (hasVideo !== video) {
-            console.log('[Call] Stream type mismatch. Stopping existing stream.');
+            console.log(
+                '[Call] Stream type mismatch. Stopping existing stream.',
+            );
             _stopLocalStream();
         } else {
             console.log('[Call] Local stream already exists and matches type.');
@@ -146,12 +150,50 @@ async function _startLocalStream(video: boolean): Promise<MediaStream> {
             audio: true,
             video: video,
         });
+
         localStream.value = stream;
         // When a new stream is started, ensure video is marked as enabled
         isVideoEnabled.value = video;
         return stream;
     } catch (error) {
         console.error('[Call] Error getting user media:', error);
+
+        if (error instanceof DOMException) {
+            switch (error.name) {
+                case 'NotFoundError':
+                    toast.error(
+                        video
+                            ? 'Камера или микрофон не обнаружены.'
+                            : 'Микрофон не обнаружен.',
+                        {
+                            description:
+                                'Пожалуйста, убедитесь, что ваши устройства подключены, и повторите попытку.',
+                            duration: 8000,
+                        },
+                    );
+                    break;
+                case 'NotAllowedError':
+                    toast.error('Доступ запрещен', {
+                        description:
+                            'Вы запретили доступ к камере или микрофону. Пожалуйста, разрешите доступ в настройках вашего браузера.',
+                        duration: 8000,
+                    });
+                    break;
+                default:
+                    toast.error('Ошибка доступа к медиафайлам', {
+                        description: `Произошла непредвиденная ошибка: ${error.message}`,
+                        duration: 8000,
+                    });
+                    break;
+            }
+        } else {
+            toast.error('Ошибка доступа к медиафайлам', {
+                description:
+                    'При попытке доступа к вашей камере или микрофону произошла неизвестная ошибка.',
+                duration: 8000,
+            });
+        }
+
         _setCallState('idle');
         throw error;
     }
@@ -355,16 +397,19 @@ export function useCall(authUserId: number) {
         }
 
         try {
-            _setCallState('outgoing');
-            otherUserId.value = calleeId;
-            callType.value = type;
-
+            // First, try to get the media stream. If this fails, it will throw an error
+            // and the function will exit before any state changes, preventing UI flicker.
             const stream = await _startLocalStream(type === 'video');
             if (!stream.getTracks().length) {
                 throw new Error(
                     'No local tracks available to create an offer.',
                 );
             }
+
+            // --- Only change state after we have the media stream ---
+            _setCallState('outgoing');
+            otherUserId.value = calleeId;
+            callType.value = type;
 
             _createPeerConnection(authUserId, stream);
             if (!peerConnection.value)
@@ -383,8 +428,13 @@ export function useCall(authUserId: number) {
                 calleeId,
             );
         } catch (error) {
+            // The error is already handled and logged in _startLocalStream.
+            // We just need to ensure we don't proceed with the call.
             console.error('[Call] Failed to initiate call:', error);
-            hangUp(authUserId);
+            // Clean up any state that might have been partially set, though with the new order, this is less likely.
+            if (callState.value !== 'idle') {
+                hangUp(authUserId);
+            }
         }
     }
 
