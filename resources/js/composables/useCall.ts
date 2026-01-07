@@ -352,6 +352,15 @@ export function useCall(authUserId: number) {
         hangUp(authUserId);
     }
 
+    function handleFailed() {
+        toast.error('Сбой вызова', {
+            description:
+                'Другой пользователь не смог подключиться к звонку.',
+            duration: 8000,
+        });
+        hangUp(authUserId);
+    }
+
     // Initialize Echo listener only once.
     if (!isListenerInitialized) {
         console.log(
@@ -380,6 +389,9 @@ export function useCall(authUserId: number) {
                     case 'call:reject':
                     case 'call:busy':
                         handleReject();
+                        break;
+                    case 'call:failed':
+                        handleFailed();
                         break;
                     case 'call:end':
                         handleEnd();
@@ -450,6 +462,7 @@ export function useCall(authUserId: number) {
 
         const offerPayload = incomingCall.value.payload;
         const type = callType.value;
+        const callerId = otherUserId.value; // Store callerId before any potential errors
 
         try {
             const stream = await _startLocalStream(type === 'video');
@@ -490,10 +503,14 @@ export function useCall(authUserId: number) {
                     from_user_id: authUserId,
                     payload: { type: answer.type, sdp: btoa(answer.sdp ?? '') },
                 },
-                otherUserId.value,
+                callerId,
             );
         } catch (error) {
             console.error('[Call] Failed to accept call:', error, offerPayload);
+            // Notify the caller that the attempt to accept failed
+            if (callerId) {
+                sendSignal({ type: 'call:failed', from_user_id: authUserId }, callerId);
+            }
             hangUp(authUserId);
         }
     }
