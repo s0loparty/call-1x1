@@ -3,13 +3,9 @@
 }
 
 call1x1.playerinlife.ru {
-
-    root * /var/www/html/public
     encode zstd gzip
 
-    #
     # 🔥 Reverb WebSocket — БЕЗ ОБРЕЗКИ PATH
-    #
     @reverb {
         path /app/* /apps/*
     }
@@ -21,18 +17,12 @@ call1x1.playerinlife.ru {
         }
     }
 
-    #
-    # Laravel / Inertia
-    #
+    # Laravel / Inertia / Assets
     handle {
-        php_fastcgi app:9000
-        #try_files {path} {path}/ /index.php?{query}
-        file_server
+        reverse_proxy app:9000
     }
 
-    #
     # Security
-    #
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
         X-Frame-Options "SAMEORIGIN"
