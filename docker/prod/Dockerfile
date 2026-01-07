@@ -38,10 +38,10 @@ RUN composer install \
 # Frontend build
 RUN npm install && npm run build
 
+# Caddy
+RUN apk add --no-cache caddy
+
 # Permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data
-
-# Caddy
-RUN apk add --no-cache caddy
