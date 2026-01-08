@@ -41,6 +41,9 @@ RUN npm install && npm run build
 # Copy Caddyfile to the location FrankenPHP expects
 COPY docker/prod/Caddyfile /etc/frankenphp/Caddyfile
 
+# livekit config
+COPY docker/prod/livekit.yaml /etc/livekit/livekit.yaml
+
 # Create and set permissions for Caddy's data and config directories
 RUN mkdir -p /data/caddy /config/caddy \
     && chown -R www-data:www-data /data /config

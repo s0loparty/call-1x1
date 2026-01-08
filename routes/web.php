@@ -41,3 +41,4 @@ Route::post('/users/offline', [UserStatusController::class, 'goOffline'])
 
 
 require __DIR__.'/settings.php';
+require __DIR__.'/rooms.php';

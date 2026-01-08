@@ -36,4 +36,16 @@ export interface User {
     updated_at: string;
 }
 
+export interface Room {
+    id: number;
+    user_id: number;
+    name: string;
+    slug: string;
+    is_private: boolean;
+    livekit_room_name: string;
+    created_at: string;
+    updated_at: string;
+    user?: User; // The creator of the room
+}
+
 export type BreadcrumbItemType = BreadcrumbItem;

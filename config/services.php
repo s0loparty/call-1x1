@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'livekit' => [
+        'host' => env('LIVEKIT_HOST'),
+        'key' => env('LIVEKIT_API_KEY'),
+        'secret' => env('LIVEKIT_API_SECRET'),
+    ],
+
 ];

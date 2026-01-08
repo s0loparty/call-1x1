@@ -69,6 +69,21 @@ services:
       TURN_PASSWORD: ${TURN_PASSWORD}
     networks: [appnet]
 
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit/livekit.yaml # copy in Dockerfile
+    restart: unless-stopped
+    environment:
+      LIVEKIT_KEYS: '${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}'
+    ports:
+      - '7880:7880' # TCP (WS signaling)
+      - '7880:7880/udp' # UDP (WebRTC media)
+      - '7881:7881' # HTTP API
+      - '50000-50020:50000-50020/udp'
+    networks: [appnet]
+    depends_on:
+      - redis
+
 networks:
   appnet:
 

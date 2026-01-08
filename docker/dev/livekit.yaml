@@ -1,0 +1,11 @@
+log_level: info
+port: 7880
+
+redis:
+  address: redis:6379
+
+rtc:
+  # для dev ничего не нужно
+  # port_range_start: 50000
+  # port_range_end: 50020
+  # tcp_port: 7881
