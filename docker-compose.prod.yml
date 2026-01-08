@@ -71,10 +71,11 @@ services:
 
   livekit:
     image: livekit/livekit-server:latest
-    command: --config /etc/livekit/livekit.yaml # copy in Dockerfile
     restart: unless-stopped
     environment:
+      LIVEKIT_LOG_LEVEL: info
       LIVEKIT_KEYS: '${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}'
+      LIVEKIT_REDIS_ADDRESS: redis:6379
     ports:
       - '7880:7880' # TCP (WS signaling)
       - '7880:7880/udp' # UDP (WebRTC media)
