@@ -8,12 +8,10 @@ call1x1.playerinlife.ru {
     encode zstd gzip
 
     # Reverb
-    handle_path /app/* {
-        reverse_proxy reverb:8080
-    }
-    handle_path /apps/* {
-        reverse_proxy reverb:8080
-    }
+		@reverb {
+				path /app/* /apps/*
+		}
+    reverse_proxy @reverb reverb:8080
 
     # LiveKit
     handle_path /livekit* {
@@ -27,8 +25,8 @@ call1x1.playerinlife.ru {
     }
 
     # PHP-FPM (Laravel application)
-    handle {
-        php_server
-				file_server
-    }
+    #handle {
+		php_server
+		file_server
+    #}
 }
