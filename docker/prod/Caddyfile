@@ -2,17 +2,39 @@
     email alabama.ster1@gmail.com
 }
 
+(php_server) {
+    php_fastcgi app:9000
+}
+
 call1x1.playerinlife.ru {
 
     root * /var/www/html/public
     encode zstd gzip
+    file_server
 
     # Reverb
-    @reverb {
-        path /app/* /apps/*
+    handle_path /app/* {
+        reverse_proxy reverb:8080
     }
-    reverse_proxy @reverb reverb:8080
+    handle_path /apps/* {
+        reverse_proxy reverb:8080
+    }
 
-    php_server
-    file_server
+    # LiveKit
+    handle_path /livekit* {
+        uri strip_prefix /livekit
+        reverse_proxy livekit:7881
+    }
+
+    # TURN
+    handle_path /turn {
+        reverse_proxy turn:3478
+    }
+
+    # PHP-FPM (Laravel application)
+    handle {
+        reverse_proxy {
+            to php_server
+        }
+    }
 }
