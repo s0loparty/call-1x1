@@ -207,12 +207,32 @@ function _closePeerConnection() {
     }
 }
 
+function _resetPeerConnection() {
+    _closePeerConnection();
+    iceCandidateQueue.value = [];
+}
+
 function _stopLocalStream() {
     if (localStream.value) {
         console.log('[Call] Stopping local media stream');
         localStream.value.getTracks().forEach((track) => track.stop());
         localStream.value = null;
     }
+}
+
+function _resetCallState() {
+    _closePeerConnection();
+    _stopLocalStream();
+
+    remoteStream.value = null;
+    incomingCall.value = null;
+    otherUserId.value = null;
+    iceCandidateQueue.value = [];
+    callType.value = null;
+    isMuted.value = false;
+    isVideoEnabled.value = true;
+
+    _setCallState('idle');
 }
 
 function hangUp(authUserId: number) {
@@ -226,18 +246,7 @@ function hangUp(authUserId: number) {
         );
     }
 
-    _closePeerConnection();
-    _stopLocalStream();
-
-    remoteStream.value = null;
-    incomingCall.value = null;
-    otherUserId.value = null;
-    iceCandidateQueue.value = [];
-    callType.value = null;
-    isMuted.value = false;
-    isVideoEnabled.value = true;
-
-    _setCallState('idle');
+    _resetCallState();
 }
 
 async function processIceCandidateQueue() {
@@ -266,6 +275,39 @@ export function useCall(authUserId: number) {
     // --- Signaling Handlers ---
     // These need authUserId to send 'busy' signals, so they are defined inside the composable
     function handleIncomingOffer(data: SignalingData) {
+        // Glare condition: we are calling someone, and they are calling us at the same time.
+        if (
+            callState.value === 'outgoing' &&
+            data.from_user_id === otherUserId.value
+        ) {
+            // Tie-breaker: user with the higher ID yields.
+            if (authUserId > data.from_user_id) {
+                console.log(
+                    '[Call] Glare detected. Yielding to incoming call.',
+                );
+                // Soft reset: close the outgoing PC, but keep the local stream.
+                _resetPeerConnection();
+                // Transition to incoming state to accept their call.
+                const payload = data.payload as SdpPayload;
+                const type = data.callType || 'audio';
+                otherUserId.value = data.from_user_id;
+                callType.value = type;
+                incomingCall.value = {
+                    from_user_id: data.from_user_id,
+                    callType: type,
+                    payload: payload,
+                };
+                _setCallState('incoming');
+                return; // Stop execution here.
+            } else {
+                console.log(
+                    '[Call] Glare detected. Proceeding with outgoing call.',
+                );
+                // We have the lower ID, so we ignore their offer. They will handle ours.
+                return;
+            }
+        }
+
         if (callState.value !== 'idle') {
             sendSignal(
                 { type: 'call:busy', from_user_id: authUserId },
