@@ -1,8 +1,11 @@
+{
+    email alabama.ster1@gmail.com
+}
+
 call1x1.playerinlife.ru {
 
     root * /var/www/html/public
     encode zstd gzip
-    file_server
 
     # Reverb
     handle_path /app/* {
@@ -25,6 +28,7 @@ call1x1.playerinlife.ru {
 
     # PHP-FPM (Laravel application)
     handle {
-        php_fastcgi app:9000
+        php_server
+				file_server
     }
 }
