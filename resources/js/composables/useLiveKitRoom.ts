@@ -341,8 +341,18 @@ export function useLiveKitRoom() {
 				throw new Error('Не удалось получить токен LiveKit или хост.');
 			}
 
-			const url = new URL(livekit_host);
-			const wsUrl = `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}`;
+			// Construct WebSocket URL safely
+			let host = livekit_host;
+			if (!host.startsWith('http://') && !host.startsWith('https://')) {
+				host = `https://${host}`;
+			}
+			const url = new URL(host);
+			const wsUrl = `${url.protocol === 'https:' ? 'wss' : 'ws'}://${url.host}${
+				url.pathname
+			}`;
+
+			console.log('livekit room url', url);
+			console.log('livekit room  wsUrl', wsUrl);
 
 			const room = markRaw(new LivekitRoom());
 
