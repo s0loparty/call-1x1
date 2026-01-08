@@ -1,11 +1,3 @@
-{
-    email alabama.ster1@gmail.com
-}
-
-(php_server) {
-    php_fastcgi app:9000
-}
-
 call1x1.playerinlife.ru {
 
     root * /var/www/html/public
@@ -33,8 +25,6 @@ call1x1.playerinlife.ru {
 
     # PHP-FPM (Laravel application)
     handle {
-        reverse_proxy {
-            to php_server
-        }
+        php_fastcgi app:9000
     }
 }

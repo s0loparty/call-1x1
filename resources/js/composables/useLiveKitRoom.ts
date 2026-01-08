@@ -185,8 +185,7 @@ export function useLiveKitRoom() {
 	}
 
 	function handleTrackSubscribed(
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		track: RemoteTrack,
+		_track: RemoteTrack,
 		publication: RemoteTrackPublication,
 		participant: RemoteParticipant,
 	) {
