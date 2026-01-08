@@ -13,11 +13,10 @@ call.playerinlife.ru {
     reverse_proxy @reverb reverb:8080
 
     # LiveKit
-		@livekit {
-				path /livekit*
-				uri strip_prefix /livekit
-		}
-		reverse_proxy @livekit livekit:7881
+    # LiveKit
+    handle_path /livekit* {
+        reverse_proxy livekit:7881
+    }
 
     #handle_path /livekit* {
     #    uri strip_prefix /livekit
