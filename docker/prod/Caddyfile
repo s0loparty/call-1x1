@@ -2,7 +2,7 @@
     email alabama.ster1@gmail.com
 }
 
-call1x1.playerinlife.ru {
+call.playerinlife.ru {
 
     root * /var/www/html/public
     encode zstd gzip
