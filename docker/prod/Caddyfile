@@ -3,35 +3,34 @@
 }
 
 call.playerinlife.ru {
-    root * /var/www/html/public
+
     encode zstd gzip
 
-    # Reverb
-		@reverb {
-				path /app/* /apps/*
-		}
-    reverse_proxy @reverb reverb:8080
+    root * /var/www/html/public
 
-    # LiveKit
-    # LiveKit
-    handle_path /livekit* {
-        reverse_proxy livekit:7881
+    # --------------------
+    # LiveKit (HTTP + WS)
+    # --------------------
+    handle /livekit* {
+        reverse_proxy livekit:7880
     }
 
-    #handle_path /livekit* {
-    #    uri strip_prefix /livekit
-    #    reverse_proxy livekit:7881
-    #}
+    # --------------------
+    # Reverb (Laravel WebSockets)
+    # --------------------
+    handle /app/* {
+        reverse_proxy reverb:8080
+    }
 
-    # TURN
-		@turn {
-			path /turn*
-		}
-    reverse_proxy @turn turn:3478
+    handle /apps/* {
+        reverse_proxy reverb:8080
+    }
 
-    # PHP-FPM (Laravel application)
-    #handle {
-		php_server
-		file_server
-    #}
+    # --------------------
+    # Laravel
+    # --------------------
+    handle {
+        php_server
+        file_server
+    }
 }

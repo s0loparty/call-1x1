@@ -5,7 +5,9 @@ redis:
   address: redis:6379
 
 rtc:
-  # для dev ничего не нужно
-  # port_range_start: 50000
-  # port_range_end: 50020
-  # tcp_port: 7881
+  turn_servers:
+    - urls:
+        - turn:call.playerinlife.ru:3478?transport=udp
+        - turn:call.playerinlife.ru:3478?transport=tcp
+      username: turnuser
+      password: turnpass
