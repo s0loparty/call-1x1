@@ -3,7 +3,6 @@
 }
 
 call.playerinlife.ru {
-
     root * /var/www/html/public
     encode zstd gzip
 
@@ -14,15 +13,22 @@ call.playerinlife.ru {
     reverse_proxy @reverb reverb:8080
 
     # LiveKit
-    handle_path /livekit* {
-        uri strip_prefix /livekit
-        reverse_proxy livekit:7881
-    }
+		@livekit {
+				path /livekit*
+				uri strip_prefix /livekit
+		}
+		reverse_proxy @livekit livekit:7881
+
+    #handle_path /livekit* {
+    #    uri strip_prefix /livekit
+    #    reverse_proxy livekit:7881
+    #}
 
     # TURN
-    handle_path /turn {
-        reverse_proxy turn:3478
-    }
+		@turn {
+			path /turn*
+		}
+    reverse_proxy @turn turn:3478
 
     # PHP-FPM (Laravel application)
     #handle {
