@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class RoomController extends Controller
@@ -146,5 +147,66 @@ class RoomController extends Controller
 		);
 
 		return response()->json(['invite_link' => $inviteLink]);
+	}
+
+	/**
+	 * Show the form for editing the specified room.
+	 */
+	public function edit(Room $room)
+	{
+		if (Auth::user()->id !== $room->user_id) {
+			abort(403);
+		}
+
+		return Inertia::render('Rooms/Edit', [
+			'room' => $room,
+		]);
+	}
+
+	/**
+	 * Update the specified room in storage.
+	 */
+	public function update(Request $request, Room $room)
+	{
+		if (Auth::user()->id !== $room->user_id) {
+			abort(403);
+		}
+
+		$validated = $request->validate([
+			'name' => ['required', 'string', 'max:255'],
+			'is_private' => 'boolean',
+			'password' => 'nullable|string|min:6',
+		]);
+
+		$room->name = $validated['name'];
+		$room->is_private = $request->boolean('is_private');
+
+		if ($room->is_private) {
+			// Only update password if a new one is provided
+			if ($request->filled('password')) {
+				$room->password = Hash::make($request->password);
+			}
+		} else {
+			// If room is made public, remove password
+			$room->password = null;
+		}
+
+		$room->save();
+
+		return redirect()->route('rooms.index');
+	}
+
+	/**
+	 * Remove the specified room from storage.
+	 */
+	public function destroy(Room $room)
+	{
+		if (Auth::user()->id !== $room->user_id) {
+			abort(403);
+		}
+
+		$room->delete();
+
+		return redirect()->route('rooms.index');
 	}
 }
