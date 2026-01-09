@@ -305,15 +305,19 @@ export function useLiveKitRoom() {
 			}
 
 			const devices = await navigator.mediaDevices.enumerateDevices();
-			audioDevices.value = devices.filter((d) => d.kind === 'audioinput');
-			videoDevices.value = devices.filter((d) => d.kind === 'videoinput');
+			console.log('devices', devices);
+
+			audioDevices.value = devices.filter(
+				(d) => d.kind === 'audioinput' && d.deviceId.length,
+			);
+			videoDevices.value = devices.filter(
+				(d) => d.kind === 'videoinput' && d.deviceId.length,
+			);
 
 			if (hasAudioPermission && audioDevices.value.length > 0) {
-				if (
-					audioDevices.value[0] &&
-					audioDevices.value[0].deviceId.length > 0
-				) {
-					selectedAudioDeviceId.value = audioDevices.value[0]?.deviceId;
+				const device = audioDevices.value[0];
+				if (device && device.deviceId.length > 0) {
+					selectedAudioDeviceId.value = device.deviceId;
 				} else {
 					selectedAudioDeviceId.value = undefined;
 				}

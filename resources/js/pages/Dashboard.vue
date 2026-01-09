@@ -222,7 +222,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 			@reject="rejectCall"
 		/>
 
-		<Toaster />
+		<Toaster expand />
 
 		<!-- Audio element for dial tone -->
 		<audio

@@ -234,14 +234,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 			<!-- Lobby Step -->
 			<div v-if="step === 'lobby'" class="lobby-container">
 				<Card class="w-[90%] gap-4 md:max-w-lg">
-					<CardHeader class="text-lg font-bold">
+					<CardHeader class="gap-0 text-lg font-bold">
 						Настройки перед входом
 					</CardHeader>
 					<CardContent class="space-y-5">
 						<Alert>
 							<CircleAlertIcon />
-							<AlertTitle> Подключение к комнате </AlertTitle>
-							<AlertDescription>
+							<AlertTitle class="text-base"> Подключение к комнате </AlertTitle>
+							<AlertDescription class="leading-5">
 								При подключение к комнате, ваша камера по умолчанию будет
 								отключена
 							</AlertDescription>
@@ -263,11 +263,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 							</div>
 						</div>
 						<div v-if="isLobbyInitialized" class="device-selectors">
-							<div class="grid grid-cols-2 gap-3">
+							<div class="grid gap-4 sm:grid-cols-2">
 								<div class="device-select">
 									<label for="mic-select">Микрофон</label>
 									<Select
-										v-if="audioDevices.length > 1"
+										v-if="audioDevices.length"
 										v-model="selectedAudioDeviceId"
 										id="mic-select"
 										@change="
@@ -296,7 +296,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 								<div class="device-select">
 									<label for="cam-select">Камера</label>
 									<Select
-										v-if="videoDevices.length > 1"
+										v-if="videoDevices.length"
 										v-model="selectedVideoDeviceId"
 										id="cam-select"
 										@change="

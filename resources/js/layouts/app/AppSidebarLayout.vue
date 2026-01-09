@@ -8,22 +8,22 @@ import type { BreadcrumbItemType } from '@/types';
 import 'vue-sonner/style.css';
 
 interface Props {
-    breadcrumbs?: BreadcrumbItemType[];
+	breadcrumbs?: BreadcrumbItemType[];
 }
 
 withDefaults(defineProps<Props>(), {
-    breadcrumbs: () => [],
+	breadcrumbs: () => [],
 });
 </script>
 
 <template>
-    <AppShell variant="sidebar">
-        <AppSidebar />
-        <AppContent variant="sidebar" class="overflow-x-hidden">
-            <AppSidebarHeader :breadcrumbs="breadcrumbs" />
-            <slot />
+	<AppShell variant="sidebar">
+		<AppSidebar />
+		<AppContent variant="sidebar" class="overflow-x-hidden">
+			<AppSidebarHeader :breadcrumbs="breadcrumbs" />
+			<slot />
 
-            <Toaster />
-        </AppContent>
-    </AppShell>
+			<Toaster expand />
+		</AppContent>
+	</AppShell>
 </template>
