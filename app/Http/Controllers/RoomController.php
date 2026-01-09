@@ -9,6 +9,7 @@ use Agence104\LiveKit\VideoGrant;
 use App\Models\Room;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +23,7 @@ class RoomController extends Controller
 	public function index()
 	{
 		$publicRooms = Room::with('user')->where('is_private', false)->latest()->get();
-		$userRooms   = Room::with('user')->where('user_id', auth()->id())->latest()->get();
+		$userRooms   = Room::with('user')->where('user_id', Auth::user()->id)->latest()->get();
 
 		return Inertia::render('Rooms/Index', [
 			'publicRooms' => $publicRooms,
@@ -50,7 +51,7 @@ class RoomController extends Controller
 		]);
 
 		$room = Room::create([
-			'user_id' => auth()->id(),
+			'user_id' => Auth::user()->id,
 			'name' => $validated['name'],
 			'is_private' => $validated['is_private'],
 			'password' => $validated['password'] ? Hash::make($validated['password']) : null,
@@ -65,7 +66,7 @@ class RoomController extends Controller
 	public function show(Room $room)
 	{
 		// Only owner or public can view
-		if ($room->is_private && $room->user_id !== auth()->id()) {
+		if ($room->is_private && $room->user_id !== Auth::user()->id) {
 			abort(403, 'Unauthorized');
 		}
 
@@ -80,7 +81,7 @@ class RoomController extends Controller
 	public function join(Room $room, Request $request)
 	{
 		/** @var User $user */
-		$user = auth()->user();
+		$user = Auth::user();
 
 		// Check password for private rooms
 		if ($room->is_private && $room->user_id !== $user->id) {

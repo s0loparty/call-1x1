@@ -47,7 +47,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 				</div>
 
 				<div class="flex items-center space-x-2">
-					<Checkbox id="is_private" v-model:checked="form.is_private" />
+					<Checkbox id="is_private" v-model="form.is_private" />
 					<Label for="is_private">Приватная комната</Label>
 					<Lock v-if="form.is_private" class="h-4 w-4 text-muted-foreground" />
 				</div>
