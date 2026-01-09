@@ -696,6 +696,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 	gap: 0.5rem;
 	padding: 0.5rem;
+	overflow-y: auto;
 }
 
 .participant-tile {
