@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +16,14 @@ import RoomGroupLayout from '@/layouts/RoomGroupLayout.vue';
 import * as rooms from '@/routes/rooms';
 import type { BreadcrumbItem, Room, User } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
-import { Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-vue-next';
+import {
+	CircleAlertIcon,
+	Mic,
+	MicOff,
+	PhoneOff,
+	Video,
+	VideoOff,
+} from 'lucide-vue-next';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 
 type Step = 'lobby' | 'password' | 'connecting' | 'connected' | 'error';
@@ -143,11 +151,20 @@ const breadcrumbs: BreadcrumbItem[] = [
 		<div class="fixed inset-0 z-10 bg-black/80 backdrop-blur-xs">
 			<!-- Lobby Step -->
 			<div v-if="step === 'lobby'" class="lobby-container">
-				<Card class="w-[90%] md:max-w-lg">
-					<CardHeader class="text-lg font-bold"
-						>Настройки перед входом</CardHeader
-					>
+				<Card class="w-[90%] gap-4 md:max-w-lg">
+					<CardHeader class="text-lg font-bold">
+						Настройки перед входом
+					</CardHeader>
 					<CardContent class="space-y-5">
+						<Alert>
+							<CircleAlertIcon />
+							<AlertTitle> Подключение к комнате </AlertTitle>
+							<AlertDescription>
+								При подключение к комнате, ваша камера по умолчанию будет
+								отключена
+							</AlertDescription>
+						</Alert>
+
 						<div class="video-preview">
 							<video
 								ref="lobbyVideoElement"

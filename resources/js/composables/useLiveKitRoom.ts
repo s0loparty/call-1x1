@@ -2,6 +2,7 @@ import * as roomRoutes from '@/routes/rooms';
 import type { Room } from '@/types';
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
+import type { VideoCaptureOptions } from 'livekit-client';
 import {
 	createLocalVideoTrack,
 	Room as LivekitRoom,
@@ -15,7 +16,7 @@ import {
 	Track,
 	TrackPublication,
 } from 'livekit-client';
-import { markRaw, readonly, ref, Ref } from 'vue';
+import { markRaw, onUnmounted, readonly, ref, Ref } from 'vue';
 import { toast } from 'vue-sonner';
 
 // --- Module-level state (Singleton Pattern) ---
@@ -37,12 +38,19 @@ const lobbyVideoTrack = ref<LocalVideoTrack | null>(null);
 const isLobbyInitialized = ref(false);
 const remoteParticipantUpdateCounter = ref(0);
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-let isListenerInitialized = false;
+let deviceListenerInitialized = false;
+if (typeof window !== 'undefined' && !deviceListenerInitialized) {
+	navigator.mediaDevices.addEventListener('devicechange', async () => {
+		const devices = await navigator.mediaDevices.enumerateDevices();
+		audioDevices.value = devices.filter((d) => d.kind === 'audioinput');
+		videoDevices.value = devices.filter((d) => d.kind === 'videoinput');
+	});
+	deviceListenerInitialized = true;
+}
 
 // --- The Composable ---
 export function useLiveKitRoom() {
-	async function _cleanup() {
+	async function _cleanupRoom() {
 		if (livekitRoom.value) {
 			await livekitRoom.value.disconnect();
 		}
@@ -52,20 +60,23 @@ export function useLiveKitRoom() {
 		localVideoTrack.value = null;
 		isMicMuted.value = true;
 		isCameraOff.value = true;
-		connecting.value = true;
-		errorMessage.value = '';
 		remoteTrackMutedStatus.value = {};
+		remoteParticipantUpdateCounter.value = 0;
+	}
+
+	async function _cleanupAll() {
+		await _cleanupRoom();
+
 		audioDevices.value = [];
 		videoDevices.value = [];
 		selectedAudioDeviceId.value = '';
 		selectedVideoDeviceId.value = '';
+		isLobbyInitialized.value = false;
+
 		if (lobbyVideoTrack.value) {
 			lobbyVideoTrack.value.stop();
 			lobbyVideoTrack.value = null;
 		}
-		isLobbyInitialized.value = false;
-		remoteParticipantUpdateCounter.value = 0;
-		isListenerInitialized = false;
 	}
 
 	// --- LiveKit Event Handlers ---
@@ -102,7 +113,7 @@ export function useLiveKitRoom() {
 			description: 'Вы покинули комнату или потеряли соединение.',
 			duration: 8000,
 		});
-		_cleanup();
+		_cleanupRoom();
 		router.visit(roomRoutes.index().url);
 	}
 
@@ -125,7 +136,7 @@ export function useLiveKitRoom() {
 	function handleLocalTrackPublished(publication: TrackPublication) {
 		if (publication.kind === Track.Kind.Video && publication.track) {
 			localVideoTrack.value = markRaw(publication.track as LocalVideoTrack);
-			isCameraOff.value = false;
+			isCameraOff.value = true;
 		}
 		if (publication.kind === Track.Kind.Audio) {
 			isMicMuted.value = publication.isMuted;
@@ -195,14 +206,19 @@ export function useLiveKitRoom() {
 		remoteParticipantUpdateCounter.value++;
 	}
 
-	async function updateLobbyVideoTrack(deviceId: string) {
+	async function updateLobbyVideoTrack(deviceId?: string) {
 		if (lobbyVideoTrack.value) {
 			lobbyVideoTrack.value.stop();
 		}
+
 		try {
-			const track = await createLocalVideoTrack({
-				deviceId,
-			});
+			const options: VideoCaptureOptions = {};
+
+			if (deviceId && deviceId !== '') {
+				options.deviceId = deviceId;
+			}
+
+			const track = await createLocalVideoTrack(options);
 			lobbyVideoTrack.value = markRaw(track);
 		} catch (e) {
 			console.error('Failed to create lobby video track', e);
@@ -242,45 +258,57 @@ export function useLiveKitRoom() {
 		isLobbyInitialized.value = false;
 
 		try {
-			// Request permissions to get device labels
-			const stream = await navigator.mediaDevices.getUserMedia({
-				audio: true,
-				video: true,
-			});
-			// Stop tracks immediately, we only needed them for permission
-			stream.getTracks().forEach((track) => track.stop());
+			let hasAudioPermission = false;
+			let hasVideoPermission = false;
+
+			try {
+				const audioStream = await navigator.mediaDevices.getUserMedia({
+					audio: true,
+				});
+				audioStream.getTracks().forEach((t) => t.stop());
+				hasAudioPermission = true;
+			} catch {
+				toast.error('Микрофон недоступен или доступ запрещён', {
+					duration: 8000,
+				});
+			}
+
+			try {
+				const videoStream = await navigator.mediaDevices.getUserMedia({
+					video: true,
+				});
+				videoStream.getTracks().forEach((t) => t.stop());
+				hasVideoPermission = true;
+			} catch {
+				toast.error('Камера недоступна или доступ запрещён', {
+					duration: 8000,
+				});
+			}
 
 			const devices = await navigator.mediaDevices.enumerateDevices();
 			audioDevices.value = devices.filter((d) => d.kind === 'audioinput');
 			videoDevices.value = devices.filter((d) => d.kind === 'videoinput');
 
-			if (audioDevices.value.length > 0) {
-				selectedAudioDeviceId.value = audioDevices.value[0].deviceId;
-			}
-			if (videoDevices.value.length > 0) {
-				const deviceId = videoDevices.value[0].deviceId;
-				selectedVideoDeviceId.value = deviceId;
-				await updateLobbyVideoTrack(deviceId);
-			}
-		} catch (e) {
-			console.error('Failed to initialize lobby', e);
-			const error = e as Error;
-
-			if (
-				error.name === 'NotAllowedError' ||
-				error.name === 'PermissionDeniedError'
-			) {
-				toast.error('Доступ к медиа запрещен', {
-					description:
-						'Пожалуйста, разрешите доступ к камере и микрофону в настройках вашего браузера.',
-					duration: 8000,
-				});
+			if (hasAudioPermission && audioDevices.value.length > 0) {
+				selectedAudioDeviceId.value =
+					audioDevices.value.find((d) => d.deviceId)?.deviceId ?? '';
 			} else {
-				toast.error('Медиа-устройства не найдены', {
-					description:
-						'Не удалось найти камеру или микрофон на вашем устройстве.',
-					duration: 8000,
-				});
+				selectedAudioDeviceId.value = '';
+			}
+
+			if (hasVideoPermission && videoDevices.value.length > 0) {
+				const device = videoDevices.value.find((d) => d.deviceId);
+				selectedVideoDeviceId.value = device?.deviceId ?? '';
+				await updateLobbyVideoTrack(device?.deviceId);
+			} else {
+				selectedVideoDeviceId.value = '';
+			}
+
+			if (!hasAudioPermission && !hasVideoPermission) {
+				toast.error(
+					'Камера и микрофон недоступны. Вы можете войти в комнату только для просмотра.',
+					{ duration: 8000 },
+				);
 			}
 		} finally {
 			isLobbyInitialized.value = true;
@@ -290,29 +318,20 @@ export function useLiveKitRoom() {
 	async function setupLocalMedia() {
 		if (!localParticipant.value) return;
 
-		try {
-			// Publish selected devices
-			if (selectedVideoDeviceId.value) {
-				await localParticipant.value.setCameraEnabled(true, {
-					deviceId: selectedVideoDeviceId.value,
-				});
-			}
-			if (selectedAudioDeviceId.value) {
-				await localParticipant.value.setMicrophoneEnabled(false, {
-					deviceId: selectedAudioDeviceId.value,
-				});
-			}
-		} catch (error) {
-			// This will now mostly catch permission errors, as we've already checked for device existence.
-			console.error(
-				'[LiveKit] Failed to get media devices (likely permission error).',
-				error,
-			);
-			if (error instanceof Error) {
-				handleMediaDevicesError(error);
-			}
-			isCameraOff.value = true;
-			isMicMuted.value = true;
+		if (selectedVideoDeviceId.value) {
+			await localParticipant.value.setCameraEnabled(false, {
+				deviceId: selectedVideoDeviceId.value,
+			});
+		} else {
+			await localParticipant.value.setCameraEnabled(false);
+		}
+
+		if (selectedAudioDeviceId.value) {
+			await localParticipant.value.setMicrophoneEnabled(true, {
+				deviceId: selectedAudioDeviceId.value,
+			});
+		} else {
+			await localParticipant.value.setMicrophoneEnabled(false);
 		}
 	}
 
@@ -323,7 +342,7 @@ export function useLiveKitRoom() {
 			lobbyVideoTrack.value = null;
 		}
 
-		await _cleanup();
+		await _cleanupRoom();
 
 		connecting.value = true;
 		errorMessage.value = '';
@@ -408,7 +427,7 @@ export function useLiveKitRoom() {
 					duration: 8000,
 				});
 			}
-			_cleanup();
+			_cleanupRoom();
 		} finally {
 			connecting.value = false;
 		}
@@ -429,8 +448,15 @@ export function useLiveKitRoom() {
 	}
 
 	async function disconnect() {
-		await _cleanup();
+		await _cleanupAll();
 	}
+
+	onUnmounted(() => {
+		if (lobbyVideoTrack.value) {
+			lobbyVideoTrack.value.stop();
+			lobbyVideoTrack.value = null;
+		}
+	});
 
 	return {
 		// State
