@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 
 class RoomController extends Controller
@@ -63,11 +64,10 @@ class RoomController extends Controller
 	/**
 	 * Display the specified room.
 	 */
-	public function show(Room $room)
+	public function show(Request $request, Room $room)
 	{
-		// Only owner or public can view
-		if ($room->is_private && $room->user_id !== Auth::user()->id) {
-			abort(403, 'Unauthorized');
+		if ($request->hasValidSignature()) {
+			session(['allowed_to_join_room_'.$room->id => true]);
 		}
 
 		return Inertia::render('Rooms/Show', [
@@ -85,12 +85,15 @@ class RoomController extends Controller
 
 		// Check password for private rooms
 		if ($room->is_private && $room->user_id !== $user->id) {
-			$validated = $request->validate([
-				'password' => 'required|string',
-			]);
+			// Bypass password check if invited via link (session key is pulled, so it's a one-time use)
+			if (! session()->pull('allowed_to_join_room_'.$room->id)) {
+				$validated = $request->validate([
+					'password' => 'required|string',
+				]);
 
-			if (! Hash::check($validated['password'], $room->password)) {
-				return back()->withErrors(['password' => 'Incorrect room password.']);
+				if (! Hash::check($validated['password'], $room->password)) {
+					return back()->withErrors(['password' => 'Incorrect room password.']);
+				}
 			}
 		}
 
@@ -124,5 +127,24 @@ class RoomController extends Controller
 			Log::error('Failed to generate LiveKit token', ['error' => $e->getMessage(), 'room_id' => $room->id, 'user_id' => $user->id]);
 			return response()->json(['error' => 'Failed to generate access token'], 500);
 		}
+	}
+
+	/**
+	 * Generate a temporary signed invite link for the room.
+	 */
+	public function generateInviteLink(Room $room)
+	{
+		// Only the room owner can generate an invite link
+		if ($room->user_id !== Auth::user()->id) {
+			abort(403, 'Unauthorized');
+		}
+
+		$inviteLink = URL::temporarySignedRoute(
+			'rooms.show',
+			now()->addHours(24),
+			['room' => $room->slug]
+		);
+
+		return response()->json(['invite_link' => $inviteLink]);
 	}
 }

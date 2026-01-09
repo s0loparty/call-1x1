@@ -30,12 +30,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 	<AppLayout :breadcrumbs="breadcrumbs">
 		<div class="p-4">
-			<div class="mb-6 flex items-center justify-between">
+			<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
 				<h1 class="text-3xl font-bold">Видеоконференции</h1>
 				<Link :href="roomCreate().url">
 					<Button>
 						<PlusCircle class="mr-2 h-4 w-4" />
-						Создать новую комнату
+						Создать комнату
 					</Button>
 				</Link>
 			</div>

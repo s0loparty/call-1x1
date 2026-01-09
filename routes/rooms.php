@@ -10,5 +10,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [RoomController::class, 'store'])->name('store');
         Route::get('/{room:slug}', [RoomController::class, 'show'])->name('show');
         Route::post('/{room:slug}/join', [RoomController::class, 'join'])->name('join');
+        Route::post('/{room:slug}/invite', [RoomController::class, 'generateInviteLink'])->name('invite');
     });
 });

@@ -3,7 +3,16 @@ import InputError from '@/components/InputError.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
 	Select,
 	SelectContent,
@@ -16,15 +25,18 @@ import RoomGroupLayout from '@/layouts/RoomGroupLayout.vue';
 import * as rooms from '@/routes/rooms';
 import type { BreadcrumbItem, Room, User } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
+import axios from 'axios';
 import { Track } from 'livekit-client';
 import {
 	CircleAlertIcon,
+	Copy,
 	Fullscreen,
 	Mic,
 	MicOff,
 	PhoneOff,
 	ScreenShare,
 	ScreenShareOff,
+	UserPlus,
 	Video,
 	VideoOff,
 } from 'lucide-vue-next';
@@ -35,6 +47,9 @@ type Step = 'lobby' | 'password' | 'connecting' | 'connected' | 'error';
 interface Props {
 	room: Room & { user: User };
 	errors: Record<string, string>;
+	auth: {
+		user: User;
+	};
 }
 
 const props = defineProps<Props>();
@@ -70,6 +85,12 @@ const localVideoElement = ref<HTMLVideoElement | null>(null);
 const lobbyVideoElement = ref<HTMLVideoElement | null>(null);
 const password = ref('');
 const step = ref<Step>('lobby');
+
+// --- Invite Modal State ---
+const isInviteModalOpen = ref(false);
+const inviteLink = ref('');
+const generatingLink = ref(false);
+const copied = ref(false);
 
 // --- Computed Properties for UI Layout ---
 const allParticipants = computed(() =>
@@ -156,6 +177,29 @@ function toggleFullscreen(event: MouseEvent) {
 		});
 	} else {
 		document.exitFullscreen();
+	}
+}
+
+async function generateAndShowInviteLink() {
+	generatingLink.value = true;
+	try {
+		const response = await axios.post(rooms.invite(props.room.slug).url);
+		inviteLink.value = response.data.invite_link;
+		isInviteModalOpen.value = true;
+	} catch (error) {
+		console.error('Failed to generate invite link:', error);
+		alert('Не удалось сгенерировать ссылку для приглашения.');
+	} finally {
+		generatingLink.value = false;
+	}
+}
+
+function copyInviteLink() {
+	if (inviteLink.value) {
+		navigator.clipboard.writeText(inviteLink.value).then(() => {
+			copied.value = true;
+			setTimeout(() => (copied.value = false), 2000);
+		});
 	}
 }
 
@@ -595,6 +639,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 						<ScreenShareOff v-else class="h-6 w-6 text-red-500" />
 					</Button>
 					<Button
+						v-if="props.room.user_id === props.auth.user.id"
+						@click="generateAndShowInviteLink"
+						variant="secondary"
+						size="icon"
+						class="rounded-full"
+						:disabled="generatingLink"
+					>
+						<UserPlus class="h-6 w-6" />
+					</Button>
+					<Button
 						@click="disconnect"
 						variant="destructive"
 						size="icon"
@@ -605,6 +659,33 @@ const breadcrumbs: BreadcrumbItem[] = [
 				</div>
 			</div>
 		</div>
+
+		<Dialog :open="isInviteModalOpen" @update:open="isInviteModalOpen = $event">
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Пригласить в комнату</DialogTitle>
+					<DialogDescription>
+						Отправьте эту ссылку другим пользователям, чтобы пригласить их в
+						комнату. Ссылка действительна 24 часа.
+					</DialogDescription>
+				</DialogHeader>
+				<div class="flex items-center space-x-2">
+					<div class="grid flex-1 gap-2">
+						<Label for="link" class="sr-only"> Link </Label>
+						<Input id="link" :defaultValue="inviteLink" read-only />
+					</div>
+					<Button @click="copyInviteLink" size="sm" class="px-3">
+						<span class="sr-only">Copy</span>
+						<Copy class="h-4 w-4" />
+					</Button>
+				</div>
+				<DialogFooter class="sm:justify-start">
+					<p v-if="copied" class="text-sm text-green-500">
+						Ссылка скопирована!
+					</p>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	</RoomGroupLayout>
 </template>
 
