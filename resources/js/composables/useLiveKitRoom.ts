@@ -23,6 +23,7 @@ import userDisconnectedSound from '../../assets/room_user_disconnected.mp3';
 
 function playSound(soundUrl: string) {
 	const audio = new Audio(soundUrl);
+	audio.volume = 0.3;
 	audio.play().catch((e) => console.error('Failed to play sound:', e));
 }
 
@@ -182,6 +183,7 @@ export function useLiveKitRoom() {
 		) {
 			remoteTrackMutedStatus.value[participant.identity][publication.trackSid] =
 				true;
+			remoteTrackMutedStatus.value = { ...remoteTrackMutedStatus.value };
 		}
 	}
 
@@ -195,6 +197,7 @@ export function useLiveKitRoom() {
 		) {
 			remoteTrackMutedStatus.value[participant.identity][publication.trackSid] =
 				false;
+			remoteTrackMutedStatus.value = { ...remoteTrackMutedStatus.value };
 		}
 	}
 
@@ -211,6 +214,7 @@ export function useLiveKitRoom() {
 		) {
 			remoteTrackMutedStatus.value[participant.identity][publication.trackSid] =
 				publication.isMuted;
+			remoteTrackMutedStatus.value = { ...remoteTrackMutedStatus.value };
 		}
 	}
 

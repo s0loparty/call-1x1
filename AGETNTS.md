@@ -105,6 +105,8 @@ Prefer:
 - Explicit state machines
 - Clear event names
 - Simple data structures
+- Break down large components into smaller ones
+- Avoid creating "god components"
 
 Avoid:
 - Implicit magic

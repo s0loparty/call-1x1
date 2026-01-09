@@ -99,13 +99,28 @@ const allParticipants = computed(() =>
 	),
 );
 
-const isSomeoneScreenSharing = computed(() =>
-	allParticipants.value.some((p) => p.isScreenShareEnabled),
+// const isSomeoneScreenSharing = computed(() =>
+// 	allParticipants.value.some((p) => p.isScreenShareEnabled),
+// );
+const isSomeoneScreenSharing = computed(
+	() => screenShareParticipants.value.length > 0,
 );
 
+// const screenShareParticipants = computed(() =>
+// 	allParticipants.value.filter((p) => p.isScreenShareEnabled),
+// );
 const screenShareParticipants = computed(() =>
-	allParticipants.value.filter((p) => p.isScreenShareEnabled),
+	allParticipants.value.filter((p) =>
+		[...p.videoTrackPublications.values()].some(
+			(pub) =>
+				pub.source === Track.Source.ScreenShare &&
+				pub.isSubscribed &&
+				pub.videoTrack,
+		),
+	),
 );
+
+const cameraParticipants = computed(() => allParticipants.value);
 
 // Watcher for the main video call track
 watch(
@@ -396,7 +411,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 					class="flex h-full w-full flex-col p-2 md:flex-row"
 				>
 					<!-- Main Stage (Screen share) -->
-					<div class="grow bg-black">
+					<!-- MAIN STAGE -->
+					<div class="grow">
 						<div
 							v-for="p in screenShareParticipants"
 							:key="p.identity"
@@ -411,17 +427,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 								<video
 									v-if="pub.isSubscribed && pub.videoTrack"
 									:ref="
-										(el) => {
-											if (el) pub.videoTrack?.attach(el as HTMLVideoElement);
-										}
+										(el) => el && pub.videoTrack?.attach(el as HTMLMediaElement)
 									"
 									autoplay
 									playsinline
 									class="video-element-screenshare"
-								></video>
+								/>
 							</template>
+
 							<div class="participant-name-badge">
-								Демонстрация от: {{ p.name || p.identity }}
+								Демонстрация: {{ p.name || p.identity }}
 							</div>
 						</div>
 					</div>
@@ -437,7 +452,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 							>
 								<!-- All participants -->
 								<div
-									v-for="p in allParticipants"
+									v-for="p in cameraParticipants"
 									:key="p.identity"
 									class="participant-tile-sidebar"
 								>
@@ -452,19 +467,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 											<Fullscreen class="h-5 w-5" />
 										</Button>
 									</div>
-									<!-- Find camera track -->
-									<template
-										v-for="pub in [...p.videoTrackPublications.values()].filter(
-											(pub) => pub.source === Track.Source.Camera,
-										)"
-										:key="pub.trackSid"
-									>
+
+									<!-- Logic for local participant -->
+									<template v-if="p.isLocal">
 										<video
-											v-if="pub.isSubscribed && pub.videoTrack"
+											v-if="localVideoTrack"
 											:ref="
 												(el) => {
 													if (el)
-														pub.videoTrack?.attach(el as HTMLVideoElement);
+														localVideoTrack?.attach(el as HTMLVideoElement);
+													else localVideoTrack?.detach();
 												}
 											"
 											autoplay
@@ -472,29 +484,84 @@ const breadcrumbs: BreadcrumbItem[] = [
 											playsinline
 											class="video-element"
 										></video>
+										<div v-if="isCameraOff" class="video-off-overlay">
+											<VideoOff class="h-8 w-8" />
+										</div>
+									</template>
+									<!-- Logic for remote participants -->
+									<template v-else>
+										<!-- Find camera track -->
+										<template
+											v-for="pub in [
+												...p.videoTrackPublications.values(),
+											].filter((pub) => pub.source === Track.Source.Camera)"
+											:key="pub.trackSid"
+										>
+											<video
+												v-if="
+													pub.isSubscribed &&
+													pub.videoTrack &&
+													!remoteTrackMutedStatus?.[p.identity]?.[pub.trackSid]
+												"
+												:ref="
+													(el) => {
+														if (el)
+															pub.videoTrack?.attach(el as HTMLVideoElement);
+														else pub.videoTrack?.detach();
+													}
+												"
+												autoplay
+												muted
+												playsinline
+												class="video-element"
+											></video>
+											<div class="video-off-overlay" v-else>
+												<VideoOff class="h-8 w-8" />
+											</div>
+										</template>
+										<!-- Show overlay if no camera track exists at all -->
 										<div
-											class="video-off-overlay"
-											v-else-if="
-												p.isLocal ||
-												!remoteTrackMutedStatus?.[p.identity]?.[pub.trackSid]
+											v-if="
+												![...p.videoTrackPublications.values()].some(
+													(pub) => pub.source === Track.Source.Camera,
+												)
 											"
+											class="video-off-overlay"
 										>
 											<VideoOff class="h-8 w-8" />
 										</div>
 									</template>
-									<!-- Show overlay if no camera track exists -->
-									<div
-										v-if="
-											[...p.videoTrackPublications.values()].filter(
-												(pub) => pub.source === Track.Source.Camera,
-											).length === 0
-										"
-										class="video-off-overlay"
-									>
-										<VideoOff class="h-8 w-8" />
-									</div>
+
 									<div class="participant-name-badge">
-										{{ p.isLocal ? 'Вы' : p.name }}
+										{{ p.isLocal ? `Вы (${p.name})` : p.name }}
+									</div>
+
+									<!-- Audio for remote participant -->
+									<div v-if="!p.isLocal">
+										<template
+											v-for="publication in [
+												...p.trackPublications.values(),
+											].filter((pub) => pub.kind === 'audio')"
+											:key="publication.trackSid"
+										>
+											<audio
+												v-if="
+													publication.isSubscribed &&
+													publication.audioTrack &&
+													!publication.isMuted
+												"
+												:ref="
+													(el) => {
+														if (el)
+															publication.audioTrack?.attach(
+																el as HTMLAudioElement,
+															);
+														else publication.audioTrack?.detach();
+													}
+												"
+												autoplay
+											></audio>
+										</template>
 									</div>
 								</div>
 							</div>
@@ -524,9 +591,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 							playsinline
 							class="video-element"
 						></video>
-						<div class="participant-name-badge">Вы</div>
+						<div class="participant-name-badge">
+							Вы ({{ props.auth.user.name }})
+						</div>
 						<div class="video-off-overlay" v-if="isCameraOff">
-							<span class="text-white">Камера выключена</span>
+							<span class="text-white">(Вы) Камера выключена</span>
 						</div>
 					</div>
 
@@ -573,6 +642,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 								autoplay
 								playsinline
 								class="video-element"
+								:class="{
+									'share-user': publication.source !== Track.Source.ScreenShare,
+								}"
 							></video>
 							<div
 								v-else-if="publication.source !== Track.Source.ScreenShare"
@@ -799,6 +871,17 @@ const breadcrumbs: BreadcrumbItem[] = [
 }
 .participant-tile.is-screenshare .video-element {
 	object-fit: contain;
+}
+.participant-tile.is-screenshare .video-element.share-user {
+	position: absolute;
+	bottom: 10px;
+	right: 10px;
+	display: block;
+	width: 200px;
+	height: auto;
+	border: 2px solid #0000007d;
+	border-radius: 4px;
+	opacity: 0.7;
 }
 
 @media (min-width: 768px) {
