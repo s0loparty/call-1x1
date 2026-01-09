@@ -2,18 +2,15 @@
     email alabamaster1@gmail.com
 }
 
+livekit.call.playerinlife.ru {
+    reverse_proxy livekit:7880
+}
+
 call.playerinlife.ru {
 
     encode zstd gzip
 
     root * /var/www/html/public
-
-    # --------------------
-    # LiveKit (HTTP + WS)
-    # --------------------
-    handle /livekit* {
-        reverse_proxy livekit:7880
-    }
 
     # --------------------
     # Reverb (Laravel WebSockets)
