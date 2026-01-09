@@ -18,6 +18,13 @@ import {
 } from 'livekit-client';
 import { markRaw, onUnmounted, readonly, ref, Ref } from 'vue';
 import { toast } from 'vue-sonner';
+import userConnectedSound from '../../assets/room_user_connected.mp3';
+import userDisconnectedSound from '../../assets/room_user_disconnected.mp3';
+
+function playSound(soundUrl: string) {
+	const audio = new Audio(soundUrl);
+	audio.play().catch((e) => console.error('Failed to play sound:', e));
+}
 
 // --- Module-level state (Singleton Pattern) ---
 const livekitRoom: Ref<LivekitRoom | null> = ref(null);
@@ -26,14 +33,15 @@ const localParticipant: Ref<LocalParticipant | null> = ref(null);
 const localVideoTrack: Ref<LocalVideoTrack | null> = ref(null);
 const isMicMuted = ref(true);
 const isCameraOff = ref(true);
+const isScreenSharing = ref(false); // New state for screen sharing
 const connecting = ref(true);
 const errorMessage = ref('');
 const remoteTrackMutedStatus: Ref<Record<string, Record<string, boolean>>> =
 	ref({});
 const audioDevices = ref<MediaDeviceInfo[]>([]);
 const videoDevices = ref<MediaDeviceInfo[]>([]);
-const selectedAudioDeviceId = ref<string>('');
-const selectedVideoDeviceId = ref<string>('');
+const selectedAudioDeviceId: Ref<string | undefined> = ref();
+const selectedVideoDeviceId: Ref<string | undefined> = ref();
 const lobbyVideoTrack = ref<LocalVideoTrack | null>(null);
 const isLobbyInitialized = ref(false);
 const remoteParticipantUpdateCounter = ref(0);
@@ -60,6 +68,7 @@ export function useLiveKitRoom() {
 		localVideoTrack.value = null;
 		isMicMuted.value = true;
 		isCameraOff.value = true;
+		isScreenSharing.value = false;
 		remoteTrackMutedStatus.value = {};
 		remoteParticipantUpdateCounter.value = 0;
 	}
@@ -69,8 +78,8 @@ export function useLiveKitRoom() {
 
 		audioDevices.value = [];
 		videoDevices.value = [];
-		selectedAudioDeviceId.value = '';
-		selectedVideoDeviceId.value = '';
+		selectedAudioDeviceId.value = undefined;
+		selectedVideoDeviceId.value = undefined;
 		isLobbyInitialized.value = false;
 
 		if (lobbyVideoTrack.value) {
@@ -83,6 +92,7 @@ export function useLiveKitRoom() {
 	function handleParticipantConnected(participant: RemoteParticipant) {
 		console.log(`[LiveKit] Participant connected: ${participant.identity}`);
 		participants.value.push(markRaw(participant));
+		playSound(userConnectedSound);
 
 		// Initialize remoteTrackMutedStatus for newly connected participant
 		if (!remoteTrackMutedStatus.value[participant.identity]) {
@@ -105,6 +115,7 @@ export function useLiveKitRoom() {
 		participants.value = participants.value.filter(
 			(p) => p.identity !== participant.identity,
 		);
+		playSound(userDisconnectedSound);
 	}
 
 	function handleDisconnected() {
@@ -134,9 +145,13 @@ export function useLiveKitRoom() {
 	}
 
 	function handleLocalTrackPublished(publication: TrackPublication) {
-		if (publication.kind === Track.Kind.Video && publication.track) {
-			localVideoTrack.value = markRaw(publication.track as LocalVideoTrack);
-			isCameraOff.value = true;
+		if (publication.kind === Track.Kind.Video) {
+			if (publication.source === Track.Source.Camera) {
+				localVideoTrack.value = markRaw(publication.track as LocalVideoTrack);
+				isCameraOff.value = false;
+			} else if (publication.source === Track.Source.ScreenShare) {
+				isScreenSharing.value = true;
+			}
 		}
 		if (publication.kind === Track.Kind.Audio) {
 			isMicMuted.value = publication.isMuted;
@@ -145,8 +160,12 @@ export function useLiveKitRoom() {
 
 	function handleLocalTrackUnpublished(publication: TrackPublication) {
 		if (publication.kind === Track.Kind.Video) {
-			localVideoTrack.value = null;
-			isCameraOff.value = true;
+			if (publication.source === Track.Source.Camera) {
+				localVideoTrack.value = null;
+				isCameraOff.value = true;
+			} else if (publication.source === Track.Source.ScreenShare) {
+				isScreenSharing.value = false;
+			}
 		}
 		if (publication.kind === Track.Kind.Audio) {
 			isMicMuted.value = true;
@@ -290,18 +309,29 @@ export function useLiveKitRoom() {
 			videoDevices.value = devices.filter((d) => d.kind === 'videoinput');
 
 			if (hasAudioPermission && audioDevices.value.length > 0) {
-				selectedAudioDeviceId.value =
-					audioDevices.value.find((d) => d.deviceId)?.deviceId ?? '';
+				if (
+					audioDevices.value[0] &&
+					audioDevices.value[0].deviceId.length > 0
+				) {
+					selectedAudioDeviceId.value = audioDevices.value[0]?.deviceId;
+				} else {
+					selectedAudioDeviceId.value = undefined;
+				}
 			} else {
-				selectedAudioDeviceId.value = '';
+				selectedAudioDeviceId.value = undefined;
 			}
 
 			if (hasVideoPermission && videoDevices.value.length > 0) {
-				const device = videoDevices.value.find((d) => d.deviceId);
-				selectedVideoDeviceId.value = device?.deviceId ?? '';
-				await updateLobbyVideoTrack(device?.deviceId);
+				const device = videoDevices.value[0];
+
+				if (device && device.deviceId.length > 0) {
+					selectedVideoDeviceId.value = device?.deviceId;
+					await updateLobbyVideoTrack(device?.deviceId);
+				} else {
+					selectedVideoDeviceId.value = undefined;
+				}
 			} else {
-				selectedVideoDeviceId.value = '';
+				selectedVideoDeviceId.value = undefined;
 			}
 
 			if (!hasAudioPermission && !hasVideoPermission) {
@@ -447,6 +477,21 @@ export function useLiveKitRoom() {
 		isCameraOff.value = !localParticipant.value.isCameraEnabled;
 	}
 
+	async function toggleScreenShare() {
+		if (!localParticipant.value) return;
+
+		const enabled = localParticipant.value.isScreenShareEnabled;
+		if (enabled) {
+			await localParticipant.value.setScreenShareEnabled(false);
+		} else {
+			const { ScreenSharePresets } = await import('livekit-client');
+			await localParticipant.value.setScreenShareEnabled(true, {
+				resolution: ScreenSharePresets.h1080fps30,
+			});
+		}
+		isScreenSharing.value = localParticipant.value.isScreenShareEnabled;
+	}
+
 	async function disconnect() {
 		await _cleanupAll();
 	}
@@ -465,6 +510,7 @@ export function useLiveKitRoom() {
 		localVideoTrack: readonly(localVideoTrack),
 		isMicMuted,
 		isCameraOff,
+		isScreenSharing, // new
 		connecting: readonly(connecting),
 		errorMessage: readonly(errorMessage),
 		remoteTrackMutedStatus: readonly(remoteTrackMutedStatus),
@@ -481,6 +527,7 @@ export function useLiveKitRoom() {
 		disconnect,
 		toggleMicrophone,
 		toggleCamera,
+		toggleScreenShare, // new
 		initLobby,
 		setSelectedAudioDeviceId,
 		setSelectedVideoDeviceId,

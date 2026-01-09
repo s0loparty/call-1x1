@@ -16,15 +16,19 @@ import RoomGroupLayout from '@/layouts/RoomGroupLayout.vue';
 import * as rooms from '@/routes/rooms';
 import type { BreadcrumbItem, Room, User } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
+import { Track } from 'livekit-client';
 import {
 	CircleAlertIcon,
+	Fullscreen,
 	Mic,
 	MicOff,
 	PhoneOff,
+	ScreenShare,
+	ScreenShareOff,
 	Video,
 	VideoOff,
 } from 'lucide-vue-next';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 type Step = 'lobby' | 'password' | 'connecting' | 'connected' | 'error';
 
@@ -41,6 +45,7 @@ const {
 	localVideoTrack,
 	isMicMuted,
 	isCameraOff,
+	isScreenSharing,
 	connecting,
 	errorMessage,
 	remoteTrackMutedStatus,
@@ -55,6 +60,7 @@ const {
 	disconnect,
 	toggleMicrophone,
 	toggleCamera,
+	toggleScreenShare,
 	initLobby,
 	setSelectedAudioDeviceId,
 	setSelectedVideoDeviceId,
@@ -64,6 +70,21 @@ const localVideoElement = ref<HTMLVideoElement | null>(null);
 const lobbyVideoElement = ref<HTMLVideoElement | null>(null);
 const password = ref('');
 const step = ref<Step>('lobby');
+
+// --- Computed Properties for UI Layout ---
+const allParticipants = computed(() =>
+	[localParticipant.value, ...participants.value].filter(
+		(p): p is NonNullable<typeof p> => p !== null,
+	),
+);
+
+const isSomeoneScreenSharing = computed(() =>
+	allParticipants.value.some((p) => p.isScreenShareEnabled),
+);
+
+const screenShareParticipants = computed(() =>
+	allParticipants.value.filter((p) => p.isScreenShareEnabled),
+);
 
 // Watcher for the main video call track
 watch(
@@ -119,6 +140,23 @@ async function handleJoin() {
 
 async function submitPassword() {
 	await connect(props.room, password.value);
+}
+
+function toggleFullscreen(event: MouseEvent) {
+	const tile = (event.currentTarget as HTMLElement).closest(
+		'.participant-tile, .participant-tile-sidebar',
+	);
+	if (!tile) return;
+
+	if (!document.fullscreenElement) {
+		tile.requestFullscreen().catch((err) => {
+			console.error(
+				`Error attempting to enable full-screen mode: ${err.message} (${err.name})`,
+			);
+		});
+	} else {
+		document.exitFullscreen();
+	}
 }
 
 onMounted(async () => {
@@ -181,64 +219,72 @@ const breadcrumbs: BreadcrumbItem[] = [
 							</div>
 						</div>
 						<div v-if="isLobbyInitialized" class="device-selectors">
-							<div class="device-select">
-								<label for="mic-select">Микрофон</label>
-								<Select
-									v-model="selectedAudioDeviceId"
-									id="mic-select"
-									@change="
-										setSelectedAudioDeviceId(
-											($event.target as HTMLSelectElement).value,
-										)
-									"
-									:disabled="!audioDevices.length"
-								>
-									<SelectTrigger class="w-max-sm w-full">
-										<SelectValue placeholder="Выбрать микрофон" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem
-											v-for="device in audioDevices"
-											:key="device.deviceId"
-											:value="device.deviceId"
-										>
-											{{ device.label }}
-										</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							<div class="device-select">
-								<label for="cam-select">Камера</label>
-								<Select
-									v-model="selectedVideoDeviceId"
-									id="cam-select"
-									@change="
-										setSelectedVideoDeviceId(
-											($event.target as HTMLSelectElement).value,
-										)
-									"
-									:disabled="!audioDevices.length"
-								>
-									<SelectTrigger class="w-max-sm w-full">
-										<SelectValue placeholder="Выбрать камеру" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem
-											v-for="device in videoDevices"
-											:key="device.deviceId"
-											:value="device.deviceId"
-										>
-											{{ device.label }}
-										</SelectItem>
-									</SelectContent>
-								</Select>
+							<div class="grid grid-cols-2 gap-3">
+								<div class="device-select">
+									<label for="mic-select">Микрофон</label>
+									<Select
+										v-if="audioDevices.length > 1"
+										v-model="selectedAudioDeviceId"
+										id="mic-select"
+										@change="
+											setSelectedAudioDeviceId(
+												($event.target as HTMLSelectElement).value,
+											)
+										"
+									>
+										<SelectTrigger class="w-max-sm w-full">
+											<SelectValue placeholder="Выбрать микрофон" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem
+												v-for="device in audioDevices"
+												:key="device.deviceId"
+												:value="device.deviceId"
+											>
+												{{ device.label }}
+											</SelectItem>
+										</SelectContent>
+									</Select>
+									<p v-else class="-mt-2 text-sm leading-3.5 text-red-500">
+										У вас нет микрофона или нет доступа к нему
+									</p>
+								</div>
+								<div class="device-select">
+									<label for="cam-select">Камера</label>
+									<Select
+										v-if="videoDevices.length > 1"
+										v-model="selectedVideoDeviceId"
+										id="cam-select"
+										@change="
+											setSelectedVideoDeviceId(
+												($event.target as HTMLSelectElement).value,
+											)
+										"
+									>
+										<SelectTrigger class="w-max-sm w-full">
+											<SelectValue placeholder="Выбрать камеру" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem
+												v-for="device in videoDevices"
+												:key="device.deviceId"
+												:value="device.deviceId"
+											>
+												{{ device.label }}
+											</SelectItem>
+										</SelectContent>
+									</Select>
+									<p v-else class="-mt-2 text-sm leading-3.5 text-red-500">
+										У вас нет камеры или нет доступа к ней
+									</p>
+								</div>
 							</div>
 						</div>
 						<div v-else class="text-center text-gray-400">
 							Загрузка устройств...
 						</div>
 
-						<div class="space-y-2">
+						<div class="grid grid-cols-2 gap-3">
 							<Button
 								@click="handleJoin"
 								class="w-full"
@@ -300,9 +346,133 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 			<!-- Connected Step (Main Room UI) -->
 			<div v-else-if="step === 'connected'" class="video-grid-container">
-				<div class="video-grid">
+				<!-- Zoom-like Layout for Screenshare -->
+				<div
+					v-if="isSomeoneScreenSharing"
+					class="flex h-full w-full flex-col p-2 md:flex-row"
+				>
+					<!-- Main Stage (Screen share) -->
+					<div class="grow bg-black">
+						<div
+							v-for="p in screenShareParticipants"
+							:key="p.identity"
+							class="participant-tile h-full w-full"
+						>
+							<template
+								v-for="pub in [...p.videoTrackPublications.values()].filter(
+									(pub) => pub.source === Track.Source.ScreenShare,
+								)"
+								:key="pub.trackSid"
+							>
+								<video
+									v-if="pub.isSubscribed && pub.videoTrack"
+									:ref="
+										(el) => {
+											if (el) pub.videoTrack?.attach(el as HTMLVideoElement);
+										}
+									"
+									autoplay
+									playsinline
+									class="video-element-screenshare"
+								></video>
+							</template>
+							<div class="participant-name-badge">
+								Демонстрация от: {{ p.name || p.identity }}
+							</div>
+						</div>
+					</div>
+
+					<!-- Sidebar (Participant Cameras) -->
+					<div
+						class="flex h-48 w-full flex-row space-x-2 p-2 md:h-full md:w-64 md:flex-col md:space-y-2 md:space-x-0 md:p-0 md:pl-2"
+					>
+						<div class="h-full w-full shrink-0 overflow-y-auto md:h-auto">
+							<div
+								class="flex h-full flex-row gap-2 md:flex-col"
+								:key="remoteParticipantUpdateCounter"
+							>
+								<!-- All participants -->
+								<div
+									v-for="p in allParticipants"
+									:key="p.identity"
+									class="participant-tile-sidebar"
+								>
+									<div class="tile-controls">
+										<Button
+											@click="toggleFullscreen"
+											variant="ghost"
+											size="icon"
+											class="fullscreen-btn"
+											title="На весь экран"
+										>
+											<Fullscreen class="h-5 w-5" />
+										</Button>
+									</div>
+									<!-- Find camera track -->
+									<template
+										v-for="pub in [...p.videoTrackPublications.values()].filter(
+											(pub) => pub.source === Track.Source.Camera,
+										)"
+										:key="pub.trackSid"
+									>
+										<video
+											v-if="pub.isSubscribed && pub.videoTrack"
+											:ref="
+												(el) => {
+													if (el)
+														pub.videoTrack?.attach(el as HTMLVideoElement);
+												}
+											"
+											autoplay
+											muted
+											playsinline
+											class="video-element"
+										></video>
+										<div
+											class="video-off-overlay"
+											v-else-if="
+												p.isLocal ||
+												!remoteTrackMutedStatus?.[p.identity]?.[pub.trackSid]
+											"
+										>
+											<VideoOff class="h-8 w-8" />
+										</div>
+									</template>
+									<!-- Show overlay if no camera track exists -->
+									<div
+										v-if="
+											[...p.videoTrackPublications.values()].filter(
+												(pub) => pub.source === Track.Source.Camera,
+											).length === 0
+										"
+										class="video-off-overlay"
+									>
+										<VideoOff class="h-8 w-8" />
+									</div>
+									<div class="participant-name-badge">
+										{{ p.isLocal ? 'Вы' : p.name }}
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Original Grid Layout -->
+				<div v-else class="video-grid">
 					<!-- Local Participant -->
 					<div v-if="localParticipant" class="participant-tile">
+						<div class="tile-controls">
+							<Button
+								@click="toggleFullscreen"
+								variant="ghost"
+								size="icon"
+								class="fullscreen-btn"
+								title="На весь экран"
+							>
+								<Fullscreen class="h-5 w-5" />
+							</Button>
+						</div>
 						<video
 							ref="localVideoElement"
 							autoplay
@@ -321,7 +491,21 @@ const breadcrumbs: BreadcrumbItem[] = [
 						v-for="participant in participants"
 						:key="`${participant.identity}-${remoteParticipantUpdateCounter}`"
 						class="participant-tile"
+						:class="{
+							'is-screenshare': participant.isScreenShareEnabled,
+						}"
 					>
+						<div class="tile-controls">
+							<Button
+								@click="toggleFullscreen"
+								variant="ghost"
+								size="icon"
+								class="fullscreen-btn"
+								title="На весь экран"
+							>
+								<Fullscreen class="h-5 w-5" />
+							</Button>
+						</div>
 						<template
 							v-for="publication in Array.from(
 								participant.trackPublications.values(),
@@ -346,7 +530,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 								playsinline
 								class="video-element"
 							></video>
-							<div v-else class="video-off-overlay">
+							<div
+								v-else-if="publication.source !== Track.Source.ScreenShare"
+								class="video-off-overlay"
+							>
 								<span class="text-white">Камера выключена</span>
 							</div>
 						</template>
@@ -397,6 +584,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 					>
 						<Video v-if="!isCameraOff" class="h-6 w-6" />
 						<VideoOff v-else class="h-6 w-6 text-red-500" />
+					</Button>
+					<Button
+						@click="toggleScreenShare"
+						variant="secondary"
+						size="icon"
+						class="rounded-full"
+					>
+						<ScreenShare v-if="!isScreenSharing" class="h-6 w-6" />
+						<ScreenShareOff v-else class="h-6 w-6 text-red-500" />
 					</Button>
 					<Button
 						@click="disconnect"
@@ -512,12 +708,46 @@ const breadcrumbs: BreadcrumbItem[] = [
 	background-color: #2d3748; /* bg-gray-800 */
 	max-height: 500px;
 	min-height: 300px;
+	order: 2; /* Default order */
+}
+
+.participant-tile.is-screenshare {
+	order: 1; /* Show first */
+	min-height: 62dvh; /* Taller for screen share */
+}
+.participant-tile.is-screenshare .video-element {
+	object-fit: contain;
+}
+
+@media (min-width: 768px) {
+	.participant-tile.is-screenshare {
+		grid-column: span 5;
+		grid-row: span 2;
+	}
 }
 
 .video-element {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
+}
+
+.video-element-screenshare {
+	width: 100%;
+	height: 100%;
+	object-fit: contain; /* Use 'contain' for screen shares */
+}
+
+.participant-tile-sidebar {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	border-radius: 0.5rem;
+	background-color: #2d3748; /* bg-gray-800 */
+	aspect-ratio: 16 / 9;
+	width: 100%;
 }
 
 .participant-name-badge {
@@ -550,5 +780,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 	background-color: rgba(0, 0, 0, 0.7);
 	padding: 0.75rem;
 	border-radius: 9999px;
+}
+
+.tile-controls {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	z-index: 10;
+}
+
+.fullscreen-btn {
+	display: none; /* Hidden by default */
+	color: white;
+	background-color: rgba(0, 0, 0, 0.5);
+}
+
+.participant-tile:hover .fullscreen-btn,
+.participant-tile-sidebar:hover .fullscreen-btn {
+	display: inline-flex; /* Show on hover */
 }
 </style>
