@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\RoomController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,5 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 		Route::get('/{room:slug}/edit', [RoomController::class, 'edit'])->name('edit');
 		Route::put('/{room:slug}', [RoomController::class, 'update'])->name('update');
 		Route::delete('/{room:slug}', [RoomController::class, 'destroy'])->name('destroy');
+
+		Route::post('/{room}/chat/{content}', [ChatController::class, 'store'])->name('chat.store');
 	});
 });

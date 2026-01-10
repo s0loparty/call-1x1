@@ -229,10 +229,21 @@ export function useLiveKitRoom() {
 		remoteParticipantUpdateCounter.value++;
 	}
 
+	function handleTrackUnpublished(
+		publication: RemoteTrackPublication,
+		participant: RemoteParticipant,
+	) {
+		console.log(
+			`[LiveKit] Track unpublished: ${publication.trackSid} from ${participant.identity}`,
+		);
+		remoteParticipantUpdateCounter.value++;
+	}
+
 	async function updateLobbyVideoTrack(deviceId?: string) {
 		if (lobbyVideoTrack.value) {
 			lobbyVideoTrack.value.stop();
 		}
+
 
 		try {
 			const options: VideoCaptureOptions = {};
@@ -421,6 +432,7 @@ export function useLiveKitRoom() {
 			room.on(RoomEvent.TrackMuted, handleTrackMuted);
 			room.on(RoomEvent.TrackUnmuted, handleTrackUnmuted);
 			room.on(RoomEvent.TrackPublished, handleRemoteTrackPublished);
+			room.on(RoomEvent.TrackUnpublished, handleTrackUnpublished);
 			room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
 
 			await room.connect(wsUrl, token);

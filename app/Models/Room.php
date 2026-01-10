@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Room extends Model
@@ -40,6 +41,24 @@ class Room extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the chat messages for the room.
+     */
+    public function chatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class)->orderBy('created_at');
+    }
+
+    /**
+     * Get the latest chat messages for the room, limited to 500.
+     */
+    public function latestChatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class)
+            ->latest()
+            ->limit(500);
     }
 
     /**

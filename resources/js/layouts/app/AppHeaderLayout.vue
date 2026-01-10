@@ -21,7 +21,7 @@ withDefaults(defineProps<Props>(), {
 		<AppContent>
 			<slot />
 
-			<Toaster expand />
+			<Toaster expand position="top-center" />
 		</AppContent>
 	</AppShell>
 </template>

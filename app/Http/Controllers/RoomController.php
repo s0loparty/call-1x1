@@ -8,6 +8,7 @@ use Agence104\LiveKit\VideoGrant;
 
 use App\Models\Room;
 use App\Models\User;
+use App\Services\ChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
@@ -65,7 +66,7 @@ class RoomController extends Controller
 	/**
 	 * Display the specified room.
 	 */
-	public function show(Request $request, Room $room)
+	public function show(Request $request, Room $room, ChatService $chatService)
 	{
 		if ($request->hasValidSignature()) {
 			session(['allowed_to_join_room_'.$room->id => true]);
@@ -73,6 +74,7 @@ class RoomController extends Controller
 
 		return Inertia::render('Rooms/Show', [
 			'room' => $room->load('user'),
+			'chatMessages' => $chatService->getMessages($room),
 		]);
 	}
 
@@ -178,7 +180,7 @@ class RoomController extends Controller
 			'password' => 'nullable|string|min:6',
 		]);
 
-		$room->name = $validated['name'];
+		$room->name       = $validated['name'];
 		$room->is_private = $request->boolean('is_private');
 
 		if ($room->is_private) {

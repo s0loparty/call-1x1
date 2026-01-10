@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Chat from '@/components/Chat.vue';
 import InputError from '@/components/InputError.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -24,13 +25,17 @@ import { useLiveKitRoom } from '@/composables/useLiveKitRoom';
 import RoomGroupLayout from '@/layouts/RoomGroupLayout.vue';
 import * as rooms from '@/routes/rooms';
 import type { BreadcrumbItem, Room, User } from '@/types';
+import { ChatMessage } from '@/types/chat';
 import { Head, Link } from '@inertiajs/vue3';
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import axios from 'axios';
 import { Track } from 'livekit-client';
 import {
 	CircleAlertIcon,
 	Copy,
 	Fullscreen,
+	MessageCircleIcon,
+	MessageCircleOffIcon,
 	Mic,
 	MicOff,
 	PhoneOff,
@@ -42,10 +47,14 @@ import {
 } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const smAndSmaller = breakpoints.smallerOrEqual('sm');
+
 type Step = 'lobby' | 'password' | 'connecting' | 'connected' | 'error';
 
 interface Props {
 	room: Room & { user: User };
+	chatMessages: ChatMessage[];
 	errors: Record<string, string>;
 	auth: {
 		user: User;
@@ -80,6 +89,8 @@ const {
 	setSelectedAudioDeviceId,
 	setSelectedVideoDeviceId,
 } = useLiveKitRoom();
+
+const isShowChat = ref(false);
 
 const localVideoElement = ref<HTMLVideoElement | null>(null);
 const lobbyVideoElement = ref<HTMLVideoElement | null>(null);
@@ -404,110 +415,81 @@ const breadcrumbs: BreadcrumbItem[] = [
 			</div>
 
 			<!-- Connected Step (Main Room UI) -->
-			<div v-else-if="step === 'connected'" class="video-grid-container">
-				<!-- Zoom-like Layout for Screenshare -->
-				<div
-					v-if="isSomeoneScreenSharing"
-					class="flex h-full w-full flex-col p-2 md:flex-row"
-				>
-					<!-- Main Stage (Screen share) -->
-					<!-- MAIN STAGE -->
-					<div class="grow">
-						<div
-							v-for="p in screenShareParticipants"
-							:key="p.identity"
-							class="participant-tile h-full w-full"
-						>
-							<template
-								v-for="pub in [...p.videoTrackPublications.values()].filter(
-									(pub) => pub.source === Track.Source.ScreenShare,
-								)"
-								:key="pub.trackSid"
+			<div v-else-if="step === 'connected'" class="flex h-full w-full">
+				<div class="video-grid-container relative flex-1">
+					<!-- Zoom-like Layout for Screenshare -->
+					<div
+						v-if="isSomeoneScreenSharing"
+						class="flex h-full w-full flex-col p-2 md:flex-row"
+					>
+						<!-- Main Stage (Screen share) -->
+						<!-- MAIN STAGE -->
+						<div class="grow">
+							<div
+								v-for="p in screenShareParticipants"
+								:key="p.identity"
+								class="participant-tile h-full w-full"
 							>
-								<video
-									v-if="pub.isSubscribed && pub.videoTrack"
-									:ref="
-										(el) => el && pub.videoTrack?.attach(el as HTMLMediaElement)
-									"
-									autoplay
-									playsinline
-									class="video-element-screenshare"
-								/>
-							</template>
+								<template
+									v-for="pub in [...p.videoTrackPublications.values()].filter(
+										(pub) => pub.source === Track.Source.ScreenShare,
+									)"
+									:key="pub.trackSid"
+								>
+									<video
+										v-if="pub.isSubscribed && pub.videoTrack"
+										:ref="
+											(el) =>
+												el && pub.videoTrack?.attach(el as HTMLMediaElement)
+										"
+										autoplay
+										playsinline
+										class="video-element-screenshare"
+									/>
+								</template>
 
-							<div class="participant-name-badge">
-								Демонстрация: {{ p.name || p.identity }}
+								<div class="participant-name-badge">
+									Демонстрация: {{ p.name || p.identity }}
+								</div>
 							</div>
 						</div>
-					</div>
 
-					<!-- Sidebar (Participant Cameras) -->
-					<div
-						class="flex h-48 w-full flex-row space-x-2 p-2 md:h-full md:w-64 md:flex-col md:space-y-2 md:space-x-0 md:p-0 md:pl-2"
-					>
-						<div class="h-full w-full shrink-0 overflow-y-auto md:h-auto">
-							<div
-								class="flex h-full flex-row gap-2 md:flex-col"
-								:key="remoteParticipantUpdateCounter"
-							>
-								<!-- All participants -->
+						<!-- Sidebar (Participant Cameras) -->
+						<div
+							class="flex h-48 w-full flex-row space-x-2 p-2 md:h-full md:w-64 md:flex-col md:space-y-2 md:space-x-0 md:p-0 md:pl-2"
+						>
+							<div class="h-full w-full shrink-0 overflow-y-auto md:h-auto">
 								<div
-									v-for="p in cameraParticipants"
-									:key="p.identity"
-									class="participant-tile-sidebar"
+									class="flex h-full flex-row gap-2 md:flex-col"
+									:key="remoteParticipantUpdateCounter"
 								>
-									<div class="tile-controls">
-										<Button
-											@click="toggleFullscreen"
-											variant="ghost"
-											size="icon"
-											class="fullscreen-btn"
-											title="На весь экран"
-										>
-											<Fullscreen class="h-5 w-5" />
-										</Button>
-									</div>
-
-									<!-- Logic for local participant -->
-									<template v-if="p.isLocal">
-										<video
-											v-if="localVideoTrack"
-											:ref="
-												(el) => {
-													if (el)
-														localVideoTrack?.attach(el as HTMLVideoElement);
-													else localVideoTrack?.detach();
-												}
-											"
-											autoplay
-											muted
-											playsinline
-											class="video-element"
-										></video>
-										<div v-if="isCameraOff" class="video-off-overlay">
-											<VideoOff class="h-8 w-8" />
+									<!-- All participants -->
+									<div
+										v-for="p in cameraParticipants"
+										:key="p.identity"
+										class="participant-tile-sidebar"
+									>
+										<div class="tile-controls">
+											<Button
+												@click="toggleFullscreen"
+												variant="ghost"
+												size="icon"
+												class="fullscreen-btn"
+												title="На весь экран"
+											>
+												<Fullscreen class="h-5 w-5" />
+											</Button>
 										</div>
-									</template>
-									<!-- Logic for remote participants -->
-									<template v-else>
-										<!-- Find camera track -->
-										<template
-											v-for="pub in [
-												...p.videoTrackPublications.values(),
-											].filter((pub) => pub.source === Track.Source.Camera)"
-											:key="pub.trackSid"
-										>
+
+										<!-- Logic for local participant -->
+										<template v-if="p.isLocal">
 											<video
-												v-if="
-													pub.isSubscribed &&
-													pub.videoTrack &&
-													!remoteTrackMutedStatus?.[p.identity]?.[pub.trackSid]
-												"
+												v-if="localVideoTrack"
 												:ref="
 													(el) => {
 														if (el)
-															pub.videoTrack?.attach(el as HTMLVideoElement);
-														else pub.videoTrack?.detach();
+															localVideoTrack?.attach(el as HTMLVideoElement);
+														else localVideoTrack?.detach();
 													}
 												"
 												autoplay
@@ -515,219 +497,275 @@ const breadcrumbs: BreadcrumbItem[] = [
 												playsinline
 												class="video-element"
 											></video>
-											<div class="video-off-overlay" v-else>
+											<div v-if="isCameraOff" class="video-off-overlay">
 												<VideoOff class="h-8 w-8" />
 											</div>
 										</template>
-										<!-- Show overlay if no camera track exists at all -->
-										<div
-											v-if="
-												![...p.videoTrackPublications.values()].some(
-													(pub) => pub.source === Track.Source.Camera,
-												)
-											"
-											class="video-off-overlay"
-										>
-											<VideoOff class="h-8 w-8" />
-										</div>
-									</template>
-
-									<div class="participant-name-badge">
-										{{ p.isLocal ? `Вы (${p.name})` : p.name }}
-									</div>
-
-									<!-- Audio for remote participant -->
-									<div v-if="!p.isLocal">
-										<template
-											v-for="publication in [
-												...p.trackPublications.values(),
-											].filter((pub) => pub.kind === 'audio')"
-											:key="publication.trackSid"
-										>
-											<audio
+										<!-- Logic for remote participants -->
+										<template v-else>
+											<!-- Find camera track -->
+											<template
+												v-for="pub in [
+													...p.videoTrackPublications.values(),
+												].filter((pub) => pub.source === Track.Source.Camera)"
+												:key="pub.trackSid"
+											>
+												<video
+													v-if="
+														pub.isSubscribed &&
+														pub.videoTrack &&
+														!remoteTrackMutedStatus?.[p.identity]?.[
+															pub.trackSid
+														]
+													"
+													:ref="
+														(el) => {
+															if (el)
+																pub.videoTrack?.attach(el as HTMLVideoElement);
+															else pub.videoTrack?.detach();
+														}
+													"
+													autoplay
+													muted
+													playsinline
+													class="video-element"
+												></video>
+												<div class="video-off-overlay" v-else>
+													<VideoOff class="h-8 w-8" />
+												</div>
+											</template>
+											<!-- Show overlay if no camera track exists at all -->
+											<div
 												v-if="
-													publication.isSubscribed &&
-													publication.audioTrack &&
-													!publication.isMuted
+													![...p.videoTrackPublications.values()].some(
+														(pub) => pub.source === Track.Source.Camera,
+													)
 												"
-												:ref="
-													(el) => {
-														if (el)
-															publication.audioTrack?.attach(
-																el as HTMLAudioElement,
-															);
-														else publication.audioTrack?.detach();
-													}
-												"
-												autoplay
-											></audio>
+												class="video-off-overlay"
+											>
+												<VideoOff class="h-8 w-8" />
+											</div>
 										</template>
+
+										<div class="participant-name-badge">
+											{{ p.isLocal ? `Вы (${p.name})` : p.name }}
+										</div>
+
+										<!-- Audio for remote participant -->
+										<div v-if="!p.isLocal">
+											<template
+												v-for="publication in [
+													...p.trackPublications.values(),
+												].filter((pub) => pub.kind === 'audio')"
+												:key="publication.trackSid"
+											>
+												<audio
+													v-if="
+														publication.isSubscribed &&
+														publication.audioTrack &&
+														!publication.isMuted
+													"
+													:ref="
+														(el) => {
+															if (el)
+																publication.audioTrack?.attach(
+																	el as HTMLAudioElement,
+																);
+															else publication.audioTrack?.detach();
+														}
+													"
+													autoplay
+												></audio>
+											</template>
+										</div>
 									</div>
 								</div>
 							</div>
 						</div>
 					</div>
-				</div>
 
-				<!-- Original Grid Layout -->
-				<div v-else class="video-grid">
-					<!-- Local Participant -->
-					<div v-if="localParticipant" class="participant-tile">
-						<div class="tile-controls">
-							<Button
-								@click="toggleFullscreen"
-								variant="ghost"
-								size="icon"
-								class="fullscreen-btn"
-								title="На весь экран"
-							>
-								<Fullscreen class="h-5 w-5" />
-							</Button>
-						</div>
-						<video
-							ref="localVideoElement"
-							autoplay
-							muted
-							playsinline
-							class="video-element"
-						></video>
-						<div class="participant-name-badge">
-							Вы ({{ props.auth.user.name }})
-						</div>
-						<div class="video-off-overlay" v-if="isCameraOff">
-							<span class="text-white">(Вы) Камера выключена</span>
-						</div>
-					</div>
-
-					<!-- Remote Participants -->
-					<div
-						v-for="participant in participants"
-						:key="`${participant.identity}-${remoteParticipantUpdateCounter}`"
-						class="participant-tile"
-						:class="{
-							'is-screenshare': participant.isScreenShareEnabled,
-						}"
-					>
-						<div class="tile-controls">
-							<Button
-								@click="toggleFullscreen"
-								variant="ghost"
-								size="icon"
-								class="fullscreen-btn"
-								title="На весь экран"
-							>
-								<Fullscreen class="h-5 w-5" />
-							</Button>
-						</div>
-						<template
-							v-for="publication in Array.from(
-								participant.trackPublications.values(),
-							).filter((pub) => pub.kind === 'video')"
-							:key="publication.trackSid"
-						>
+					<!-- Original Grid Layout -->
+					<div v-else class="video-grid">
+						<!-- Local Participant -->
+						<div v-if="localParticipant" class="participant-tile">
+							<div class="tile-controls">
+								<Button
+									@click="toggleFullscreen"
+									variant="ghost"
+									size="icon"
+									class="fullscreen-btn"
+									title="На весь экран"
+								>
+									<Fullscreen class="h-5 w-5" />
+								</Button>
+							</div>
 							<video
-								v-if="
-									publication.isSubscribed &&
-									publication.videoTrack &&
-									!remoteTrackMutedStatus?.[participant.identity]?.[
-										publication.trackSid
-									]
-								"
-								:ref="
-									(el) => {
-										if (el)
-											publication.videoTrack?.attach(el as HTMLVideoElement);
-									}
-								"
+								ref="localVideoElement"
 								autoplay
+								muted
 								playsinline
 								class="video-element"
-								:class="{
-									'share-user': publication.source !== Track.Source.ScreenShare,
-								}"
 							></video>
-							<div
-								v-else-if="publication.source !== Track.Source.ScreenShare"
-								class="video-off-overlay"
-							>
-								<span class="text-white">Камера выключена</span>
+							<div class="participant-name-badge">
+								Вы ({{ props.auth.user.name }})
 							</div>
-						</template>
-						<div class="participant-name-badge">
-							{{ participant.name || participant.identity }}
+							<div class="video-off-overlay" v-if="isCameraOff">
+								<span class="text-white">(Вы) Камера выключена</span>
+							</div>
 						</div>
-						<!-- Audio for remote participant -->
-						<template
-							v-for="publication in Array.from(
-								participant.trackPublications.values(),
-							).filter((pub) => pub.kind === 'audio')"
-							:key="publication.trackSid"
+
+						<!-- Remote Participants -->
+						<div
+							v-for="participant in participants"
+							:key="`${participant.identity}-${remoteParticipantUpdateCounter}`"
+							class="participant-tile"
+							:class="{
+								'is-screenshare': participant.isScreenShareEnabled,
+							}"
 						>
-							<audio
-								v-if="
-									publication.isSubscribed &&
-									publication.audioTrack &&
-									!publication.isMuted
-								"
-								:ref="
-									(el) => {
-										if (el)
-											publication.audioTrack?.attach(el as HTMLAudioElement);
-									}
-								"
-								autoplay
-							></audio>
-						</template>
+							<div class="tile-controls">
+								<Button
+									@click="toggleFullscreen"
+									variant="ghost"
+									size="icon"
+									class="fullscreen-btn"
+									title="На весь экран"
+								>
+									<Fullscreen class="h-5 w-5" />
+								</Button>
+							</div>
+							<template
+								v-for="publication in Array.from(
+									participant.trackPublications.values(),
+								).filter((pub) => pub.kind === 'video')"
+								:key="publication.trackSid"
+							>
+								<video
+									v-if="
+										publication.isSubscribed &&
+										publication.videoTrack &&
+										!remoteTrackMutedStatus?.[participant.identity]?.[
+											publication.trackSid
+										]
+									"
+									:ref="
+										(el) => {
+											if (el)
+												publication.videoTrack?.attach(el as HTMLVideoElement);
+										}
+									"
+									autoplay
+									playsinline
+									class="video-element"
+									:class="{
+										'share-user':
+											publication.source !== Track.Source.ScreenShare,
+									}"
+								></video>
+								<div
+									v-else-if="publication.source !== Track.Source.ScreenShare"
+									class="video-off-overlay"
+								>
+									<span class="text-white">Камера выключена</span>
+								</div>
+							</template>
+							<div class="participant-name-badge">
+								{{ participant.name || participant.identity }}
+							</div>
+							<!-- Audio for remote participant -->
+							<template
+								v-for="publication in Array.from(
+									participant.trackPublications.values(),
+								).filter((pub) => pub.kind === 'audio')"
+								:key="publication.trackSid"
+							>
+								<audio
+									v-if="
+										publication.isSubscribed &&
+										publication.audioTrack &&
+										!publication.isMuted
+									"
+									:ref="
+										(el) => {
+											if (el)
+												publication.audioTrack?.attach(el as HTMLAudioElement);
+										}
+									"
+									autoplay
+								></audio>
+							</template>
+						</div>
+					</div>
+
+					<!-- Controls -->
+					<div class="controls-overlay">
+						<Button
+							@click="toggleMicrophone"
+							variant="secondary"
+							size="icon"
+							class="rounded-full"
+						>
+							<Mic v-if="!isMicMuted" class="h-6 w-6" />
+							<MicOff v-else class="h-6 w-6 text-red-500" />
+						</Button>
+						<Button
+							@click="toggleCamera"
+							variant="secondary"
+							size="icon"
+							class="rounded-full"
+						>
+							<Video v-if="!isCameraOff" class="h-6 w-6" />
+							<VideoOff v-else class="h-6 w-6 text-red-500" />
+						</Button>
+						<Button
+							@click="toggleScreenShare"
+							variant="secondary"
+							size="icon"
+							class="rounded-full"
+						>
+							<ScreenShare v-if="!isScreenSharing" class="h-6 w-6" />
+							<ScreenShareOff v-else class="h-6 w-6 text-red-500" />
+						</Button>
+						<Button
+							v-if="props.room.user_id === props.auth.user.id"
+							@click="generateAndShowInviteLink"
+							variant="secondary"
+							size="icon"
+							class="rounded-full"
+							:disabled="generatingLink"
+						>
+							<UserPlus class="h-6 w-6" />
+						</Button>
+						<Button
+							@click="isShowChat = !isShowChat"
+							variant="secondary"
+							size="icon"
+							class="rounded-full"
+						>
+							<MessageCircleIcon v-if="isShowChat" class="h-6 w-6" />
+							<MessageCircleOffIcon v-else class="h-6 w-6" />
+						</Button>
+						<Button
+							@click="disconnect"
+							variant="destructive"
+							size="icon"
+							class="rounded-full"
+						>
+							<PhoneOff class="h-6 w-6" />
+						</Button>
 					</div>
 				</div>
 
-				<!-- Controls -->
-				<div class="controls-overlay">
-					<Button
-						@click="toggleMicrophone"
-						variant="secondary"
-						size="icon"
-						class="rounded-full"
-					>
-						<Mic v-if="!isMicMuted" class="h-6 w-6" />
-						<MicOff v-else class="h-6 w-6 text-red-500" />
-					</Button>
-					<Button
-						@click="toggleCamera"
-						variant="secondary"
-						size="icon"
-						class="rounded-full"
-					>
-						<Video v-if="!isCameraOff" class="h-6 w-6" />
-						<VideoOff v-else class="h-6 w-6 text-red-500" />
-					</Button>
-					<Button
-						@click="toggleScreenShare"
-						variant="secondary"
-						size="icon"
-						class="rounded-full"
-					>
-						<ScreenShare v-if="!isScreenSharing" class="h-6 w-6" />
-						<ScreenShareOff v-else class="h-6 w-6 text-red-500" />
-					</Button>
-					<Button
-						v-if="props.room.user_id === props.auth.user.id"
-						@click="generateAndShowInviteLink"
-						variant="secondary"
-						size="icon"
-						class="rounded-full"
-						:disabled="generatingLink"
-					>
-						<UserPlus class="h-6 w-6" />
-					</Button>
-					<Button
-						@click="disconnect"
-						variant="destructive"
-						size="icon"
-						class="rounded-full"
-					>
-						<PhoneOff class="h-6 w-6" />
-					</Button>
+				<div
+					:class="[
+						isShowChat
+							? smAndSmaller
+								? 'fixed z-10 h-[90dvh] w-full'
+								: 'w-[350px] opacity-100'
+							: 'w-0 overflow-hidden opacity-0',
+					]"
+				>
+					<Chat :room="props.room" :initial-messages="props.chatMessages" />
 				</div>
 			</div>
 		</div>
