@@ -6,7 +6,7 @@ import {
 	destroy as roomDestroy,
 	edit as roomEdit,
 	index as roomList,
-	show as roomShow,
+	lobby as roomLobby,
 } from '@/routes/rooms';
 import type { BreadcrumbItem, Room } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -69,7 +69,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 							</p>
 						</div>
 						<div class="mt-4 flex flex-wrap justify-between gap-2">
-							<Link :href="roomShow(room.slug).url">
+							<Link :href="roomLobby(room.slug).url">
 								<Button size="sm" class="w-full">Присоединиться</Button>
 							</Link>
 							<div class="flex items-center gap-2">
@@ -108,7 +108,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 						<p class="text-sm text-muted-foreground">
 							Создана: {{ room.user?.name || 'Неизвестно' }}
 						</p>
-						<Link :href="roomShow(room.slug).url">
+						<Link :href="roomLobby(room.slug).url">
 							<Button size="sm" class="mt-3">Присоединиться</Button>
 						</Link>
 					</div>

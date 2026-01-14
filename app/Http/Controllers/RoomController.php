@@ -64,6 +64,52 @@ class RoomController extends Controller
 	}
 
 	/**
+	 * Show the lobby for a specified room.
+	 */
+	public function lobby(Room $room)
+	{
+		return Inertia::render('Rooms/Lobby', [
+			'room' => $room->load('user'),
+		]);
+	}
+
+	public function live(Request $request, Room $room, ChatService $chatService)
+	{
+		/** @var User $user */
+		$user = Auth::user();
+
+		// Ensure the user has gone through the lobby preparation step.
+        // This prevents direct URL access and forces device setup.
+        if (! session()->pull('prepared_to_join_room_'.$room->id)) {
+            return redirect()->route('rooms.lobby', $room->slug);
+        }
+
+		$tokenOptions = (new AccessTokenOptions())
+			->setIdentity((string) $user->id)
+			->setName($user->name);
+
+		$videoGrant = (new VideoGrant())
+			->setRoomJoin(true)
+			->setRoomName($room->livekit_room_name)
+			->setCanPublish(true)
+			->setCanSubscribe(true);
+
+		$accessToken = (new AccessToken(
+			Config::get('services.livekit.key'),
+			Config::get('services.livekit.secret')
+		))
+			->init($tokenOptions)
+			->setGrant($videoGrant);
+
+		return Inertia::render('Rooms/Live', [
+			'room' => $room->load('user'),
+			'livekitToken' => $accessToken->toJwt(),
+			'livekitHost' => Config::get('services.livekit.host'),
+			'chatMessages' => $chatService->getMessages($room),
+		]);
+	}
+
+	/**
 	 * Display the specified room.
 	 */
 	public function show(Request $request, Room $room, ChatService $chatService)
