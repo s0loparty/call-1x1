@@ -18,8 +18,8 @@ import {
 } from 'livekit-client';
 import { markRaw, onUnmounted, readonly, ref, Ref } from 'vue';
 import { toast } from 'vue-sonner';
-import userConnectedSound from '../../assets/room_user_connected.mp3';
-import userDisconnectedSound from '../../assets/room_user_disconnected.mp3';
+import userConnectedSound from '/sounds/room_user_connected.mp3';
+import userDisconnectedSound from '/sounds/room_user_disconnected.mp3';
 
 function playSound(soundUrl: string) {
 	const audio = new Audio(soundUrl);
