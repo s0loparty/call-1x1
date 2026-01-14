@@ -18,8 +18,6 @@ import {
 } from 'livekit-client';
 import { markRaw, onUnmounted, readonly, ref, Ref } from 'vue';
 import { toast } from 'vue-sonner';
-import userConnectedSound from '/sounds/room_user_connected.mp3';
-import userDisconnectedSound from '/sounds/room_user_disconnected.mp3';
 
 function playSound(soundUrl: string) {
 	const audio = new Audio(soundUrl);
@@ -93,7 +91,7 @@ export function useLiveKitRoom() {
 	function handleParticipantConnected(participant: RemoteParticipant) {
 		console.log(`[LiveKit] Participant connected: ${participant.identity}`);
 		participants.value.push(markRaw(participant));
-		playSound(userConnectedSound);
+		playSound('/sounds/room_user_connected.mp3');
 
 		// Initialize remoteTrackMutedStatus for newly connected participant
 		if (!remoteTrackMutedStatus.value[participant.identity]) {
@@ -116,7 +114,7 @@ export function useLiveKitRoom() {
 		participants.value = participants.value.filter(
 			(p) => p.identity !== participant.identity,
 		);
-		playSound(userDisconnectedSound);
+		playSound('/sounds/room_user_disconnected.mp3');
 	}
 
 	function handleDisconnected() {
@@ -243,7 +241,6 @@ export function useLiveKitRoom() {
 		if (lobbyVideoTrack.value) {
 			lobbyVideoTrack.value.stop();
 		}
-
 
 		try {
 			const options: VideoCaptureOptions = {};
